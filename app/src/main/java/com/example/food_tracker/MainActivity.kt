@@ -17,26 +17,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
-
 import com.example.food_tracker.core.navigation.Screen
 import com.example.food_tracker.core.ui.theme.LemonWhite
-import com.example.food_tracker.data.repository.FoodRepositoryImpl
 import com.example.food_tracker.data.local.UserDataStore
-import com.example.food_tracker.feature.home.HomeScreen
-import com.example.food_tracker.feature.home.HomeViewModel
-import com.example.food_tracker.feature.camera.CameraScreen
-import com.example.food_tracker.feature.profile.ProfileScreen
-import com.example.food_tracker.feature.profile.ProfileViewModel
-import com.example.food_tracker.feature.onboarding.OnboardingScreen
+import com.example.food_tracker.data.repository.FoodRepositoryImpl
 import com.example.food_tracker.domain.usecase.AddFoodUseCase
 import com.example.food_tracker.feature.addfood.AddFoodViewModel
-import com.example.food_tracker.feature.dashboard.DashboardScreen
-import kotlinx.coroutines.flow.take
+import com.example.food_tracker.feature.camera.CameraScreen
+import com.example.food_tracker.feature.camera.CameraViewModel
+import com.example.food_tracker.feature.camera.CameraViewModelFactory
+import com.example.food_tracker.feature.home.HomeScreen
+import com.example.food_tracker.feature.home.HomeViewModel
+import com.example.food_tracker.feature.onboarding.OnboardingScreen
+import com.example.food_tracker.feature.profile.ProfileScreen
+import com.example.food_tracker.feature.profile.ProfileViewModel
 import com.example.food_tracker.feature.stats.StatsScreen
+import kotlinx.coroutines.flow.take
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -103,7 +104,6 @@ fun FoodTrackerApp() {
                 modifier = Modifier.padding(paddingValues)
             ) {
                 composable("onboarding") {
-                    // FIX: Oper parameter userDataStore ke OnboardingScreen
                     OnboardingScreen(
                         userDataStore = userDataStore,
                         onFinished = {
@@ -126,29 +126,22 @@ fun FoodTrackerApp() {
                 }
 
                 composable("camera") {
-
                     CameraPermissionWrapper {
-
-                        CameraScreen(
-
-                            onImageCaptured = { bitmap ->
-
-                                homeViewModel.processFoodPhoto(bitmap, context)
-
-                                navController.navigate("home") {
-
-                                    popUpTo("home") { inclusive = true }
-
-                                }
-
-                            },
-
-                            onClose = { navController.popBackStack() }
-
+                        val cameraViewModel: CameraViewModel = viewModel(
+                            factory = CameraViewModelFactory(context.applicationContext)
                         )
-
+                        CameraScreen(
+                            viewModel = cameraViewModel,
+                            homeViewModel = homeViewModel,
+                            onImageCaptured = { bitmap ->
+                                homeViewModel.processFoodPhoto(bitmap, context)
+                                navController.navigate("home") {
+                                    popUpTo("home") { inclusive = true }
+                                }
+                            },
+                            onClose = { navController.popBackStack() }
+                        )
                     }
-
                 }
 
                 composable("profile") { ProfileScreen(viewModel = profileViewModel) }

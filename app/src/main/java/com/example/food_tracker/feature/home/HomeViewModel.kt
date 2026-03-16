@@ -34,7 +34,6 @@ class HomeViewModel(
     private val foodClassifier = FoodClassifier()
 
     init {
-
         // Load CSV makanan
         viewModelScope.launch {
             val foods = withContext(Dispatchers.IO) {
@@ -62,9 +61,7 @@ class HomeViewModel(
     }
 
     private fun observeNutritionData() {
-
         viewModelScope.launch {
-
             userDataStore.getSuppliedCals().collectLatest { cals ->
                 Log.d("FOOD_TRACKER", "Calories updated: $cals")
                 updateState(calories = cals ?: 0.0)
@@ -72,21 +69,18 @@ class HomeViewModel(
         }
 
         viewModelScope.launch {
-
             userDataStore.getProtein().collectLatest { protein ->
                 updateState(protein = protein ?: 0.0)
             }
         }
 
         viewModelScope.launch {
-
             userDataStore.getCarbs().collectLatest { carbs ->
                 updateState(carbs = carbs ?: 0.0)
             }
         }
 
         viewModelScope.launch {
-
             userDataStore.getFat().collectLatest { fat ->
                 updateState(fat = fat ?: 0.0)
             }
@@ -94,17 +88,11 @@ class HomeViewModel(
     }
 
     fun processFoodPhoto(bitmap: Bitmap, context: Context) {
-
         val csvReader = CsvNutritionReader(context)
-
         foodClassifier.classifyImage(bitmap) { detectedName ->
-
             val nutrition = csvReader.getNutritionData(detectedName)
-
             nutrition?.let { data ->
-
                 viewModelScope.launch {
-
                     repository.insertFoodHistory(
                         Food(
                             name = detectedName,
@@ -121,19 +109,11 @@ class HomeViewModel(
     }
 
     fun addFoodDirect(food: Food, portion: Int) {
-
         viewModelScope.launch {
-
             val calories = food.calories * portion
-
-            val protein =
-                (food.protein.replace(",", ".").toDoubleOrNull() ?: 0.0) * portion
-
-            val carbs =
-                (food.carbs.replace(",", ".").toDoubleOrNull() ?: 0.0) * portion
-
-            val fat =
-                (food.fat.replace(",", ".").toDoubleOrNull() ?: 0.0) * portion
+            val protein = (food.protein.replace(",", ".").toDoubleOrNull() ?: 0.0) * portion
+            val carbs = (food.carbs.replace(",", ".").toDoubleOrNull() ?: 0.0) * portion
+            val fat = (food.fat.replace(",", ".").toDoubleOrNull() ?: 0.0) * portion
 
             Log.d("FOOD_TRACKER", "Adding food: ${food.name}")
             Log.d("FOOD_TRACKER", "Calories added: $calories")
@@ -152,7 +132,6 @@ class HomeViewModel(
     }
 
     fun searchFood(query: String) {
-
         if (query.isBlank()) {
             _searchResults.value = emptyList()
             return
@@ -163,8 +142,11 @@ class HomeViewModel(
         }
     }
 
-    fun getMacroAchievement(): Triple<Boolean, Boolean, Boolean> {
+    fun getFoodByName(name: String): Food? {
+        return _allFoods.value.find { it.name.equals(name, ignoreCase = true) }
+    }
 
+    fun getMacroAchievement(): Triple<Boolean, Boolean, Boolean> {
         val proteinGoal = 120
         val carbsGoal = 250
         val caloriesGoal = 2000
@@ -173,10 +155,6 @@ class HomeViewModel(
         val carbsReached = state.carbsCount >= carbsGoal
         val caloriesReached = state.suppliedCalories >= caloriesGoal
 
-        return Triple(
-            proteinReached,
-            carbsReached,
-            caloriesReached
-        )
+        return Triple(proteinReached, carbsReached, caloriesReached)
     }
 }
