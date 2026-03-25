@@ -7,6 +7,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import kotlinx.coroutines.flow.first // Pastikan ini ada untuk ambil data snapshot
 
+private val foodHistory = mutableListOf<Food>()
 class FoodRepositoryImpl(
     private val context: Context,
     private val userDataStore: UserDataStore
@@ -38,6 +39,12 @@ class FoodRepositoryImpl(
             carbs = currentCarbs + newCarbs,
             fat = currentFat + newFat
         )
+
+        foodHistory.add(food)
+    }
+
+    suspend fun getFoodHistory(): List<Food> {
+        return foodHistory
     }
 
     /**

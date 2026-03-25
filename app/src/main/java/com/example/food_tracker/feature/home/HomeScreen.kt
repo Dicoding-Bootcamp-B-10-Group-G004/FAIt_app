@@ -34,13 +34,15 @@ import java.util.Calendar
 @Composable
 fun HomeScreen(
     homeViewModel: HomeViewModel,
-    addFoodViewModel: AddFoodViewModel
+    addFoodViewModel: AddFoodViewModel,
+    onFoodClick: (Food) -> Unit, // TAMBAHKAN PARAMETER INI UNTUK NAVIGASI
+    onNavigateToAddFood: (String) -> Unit
 ) {
-
     val softGreen = Color(0xFFB9F6CA)
     val darkGreen = Color(0xFF2E7D32)
 
     val homeState = homeViewModel.state
+    val goal = homeViewModel.calorieGoal
     val addFoodState = addFoodViewModel.state
 
     val sheetState = rememberModalBottomSheetState()
@@ -49,16 +51,12 @@ fun HomeScreen(
     var showSheet by remember { mutableStateOf(false) }
     var selectedCategory by remember { mutableStateOf("") }
 
-    // state portion
-    var portion by remember { mutableStateOf("1") }
-
     val today = Calendar.getInstance()
     val dateFormat = SimpleDateFormat("MMMM d, yyyy", Locale.getDefault())
     val formattedDate = dateFormat.format(Date())
 
     Scaffold(
         containerColor = Color(0xFFFFFDF0),
-
         topBar = {
             TopAppBar(
                 title = {
@@ -70,55 +68,33 @@ fun HomeScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
-
     ) { padding ->
 
         if (showSheet) {
-
             ModalBottomSheet(
                 onDismissRequest = { showSheet = false },
                 sheetState = sheetState,
                 containerColor = Color.White
             ) {
-
                 Column(
-                    modifier = Modifier.padding(
-                        bottom = 32.dp,
-                        start = 16.dp,
-                        end = 16.dp
-                    )
+                    modifier = Modifier.padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
                 ) {
-
-                    Text(
-                        "Select Category",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-
+                    Text("Select Category", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Spacer(modifier = Modifier.height(16.dp))
-
                     listOf("Breakfast", "Lunch", "Dinner", "Snack").forEach { category ->
-
                         ListItem(
                             headlineContent = { Text(category) },
-
                             leadingContent = {
-
                                 val iconVector = when (category) {
                                     "Breakfast" -> Icons.Rounded.LightMode
                                     "Lunch" -> Icons.Rounded.WbSunny
                                     else -> Icons.Rounded.NightsStay
                                 }
-
                                 Icon(iconVector, contentDescription = null)
                             },
-
                             modifier = Modifier.clickable {
-
                                 selectedCategory = category
-
-                                scope.launch { sheetState.hide() }
-                                    .invokeOnCompletion { showSheet = false }
+                                scope.launch { sheetState.hide() }.invokeOnCompletion { showSheet = false }
                             }
                         )
                     }
@@ -127,23 +103,13 @@ fun HomeScreen(
         }
 
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-
+            modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(20.dp),
-
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-
             item {
-
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     items((9..15).toList()) { day ->
-
                         CalendarItem(
                             day = day.toString(),
                             isSelected = day == today.get(Calendar.DAY_OF_MONTH),
@@ -154,206 +120,112 @@ fun HomeScreen(
             }
 
             item {
-
                 MainCalorieCard(
                     accentColor = softGreen,
                     supplied = homeState.suppliedCalories.toInt().toString(),
-                    left = (2567 - homeState.suppliedCalories.toInt())
-                        .coerceAtLeast(0)
-                        .toString(),
-                    progress = (homeState.suppliedCalories.toFloat() / 2567f)
+                    left = (goal - homeState.suppliedCalories).toInt().coerceAtLeast(0).toString(),
+                    progress = (homeState.suppliedCalories / goal).toFloat()
                 )
             }
 
             item {
-
                 Column {
-
                     if (selectedCategory.isNotEmpty()) {
-
                         AssistChip(
                             onClick = { selectedCategory = "" },
                             label = { Text("Adding to: $selectedCategory") },
-
                             trailingIcon = {
-                                Icon(
-                                    imageVector = Icons.Rounded.Close,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(14.dp)
-                                )
+                                Icon(Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(14.dp))
                             }
                         )
                     }
 
                     OutlinedTextField(
                         value = addFoodState.searchQuery,
-
                         onValueChange = {
-                            addFoodViewModel.onEvent(
-                                AddFoodEvent.OnSearchQueryChange(it)
-                            )
+                            addFoodViewModel.onEvent(AddFoodEvent.OnSearchQueryChange(it))
                         },
-
                         modifier = Modifier.fillMaxWidth(),
-
                         placeholder = { Text("Search food...") },
-
-                        leadingIcon = {
-                            Icon(Icons.Rounded.Search, contentDescription = null)
-                        },
-
-                        shape = RoundedCornerShape(16.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = portion,
-                        onValueChange = { portion = it },
-                        modifier = Modifier.width(120.dp),
-                        label = { Text("Portion") },
+                        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                         shape = RoundedCornerShape(16.dp)
                     )
                 }
             }
 
+            // MODIFIKASI: Hasil pencarian sekarang mengarah ke AddNutritionScreen saat di-klik
             if (addFoodState.searchQuery.isNotEmpty()) {
-
                 items(addFoodState.searchResults) { food ->
-
-                    FoodResultItem(food = food, accentColor = softGreen) {
-
-                        val p = portion.toIntOrNull() ?: 1
-
-                        addFoodViewModel.addFoodWithPortion(food, p)
-
-                        // FIX supaya calories ikut update
-                        homeViewModel.addFoodDirect(food, p)
-
-                        addFoodViewModel.onEvent(
-                            AddFoodEvent.OnSearchQueryChange("")
-                        )
-
-                        portion = "1"
-
-                        selectedCategory = ""
-                    }
-                }
-            }
-
-            item {
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-
-                    MacroItem(
-                        "Carbs",
-                        "${homeState.carbsCount.toInt()}/385g",
-                        (homeState.carbsCount.toFloat() / 385f),
-                        Modifier.weight(1f)
-                    )
-
-                    MacroItem(
-                        "Fat",
-                        "${homeState.fatCount.toInt()}/71g",
-                        (homeState.fatCount.toFloat() / 71f),
-                        Modifier.weight(1f)
-                    )
-
-                    MacroItem(
-                        "Protein",
-                        "${homeState.proteinCount.toInt()}/96g",
-                        (homeState.proteinCount.toFloat() / 96f),
-                        Modifier.weight(1f)
+                    FoodResultItem(
+                        food = food,
+                        accentColor = softGreen,
+                        onItemClick = { onFoodClick(food) }, // Navigasi ke Edit Porsi
+                        onAddQuickClick = {
+                            // Quick Add porsi default 100g/unit (opsional)
+                            homeViewModel.addFoodDirect(food, 100)
+                            addFoodViewModel.onEvent(AddFoodEvent.OnSearchQueryChange(""))
+                        }
                     )
                 }
             }
 
             item {
-                MealCategoryCard("Breakfast", "0 kcal", Icons.Rounded.LightMode) {
-                    showSheet = true
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    MacroItem("Carbs", "${homeState.carbsCount.toInt()}/385g", (homeState.carbsCount.toFloat() / 385f), Modifier.weight(1f))
+                    MacroItem("Fat", "${homeState.fatCount.toInt()}/71g", (homeState.fatCount.toFloat() / 71f), Modifier.weight(1f))
+                    MacroItem("Protein", "${homeState.proteinCount.toInt()}/96g", (homeState.proteinCount.toFloat() / 96f), Modifier.weight(1f))
                 }
             }
 
             item {
-                MealCategoryCard("Lunch", "0 kcal", Icons.Rounded.WbSunny) {
-                    showSheet = true
-                }
+                MealCategoryCard("Breakfast", "0 kcal", Icons.Rounded.LightMode) { showSheet = true }
+            }
+
+            item {
+                MealCategoryCard("Lunch", "0 kcal", Icons.Rounded.WbSunny) { showSheet = true }
             }
         }
     }
 }
 
+// ... (CalendarItem & MainCalorieCard tetap sama)
+
 @Composable
 fun CalendarItem(day: String, isSelected: Boolean, darkGreen: Color) {
-
     Column(
         modifier = Modifier
             .width(55.dp)
-            .background(
-                if (isSelected) darkGreen else Color.White,
-                RoundedCornerShape(16.dp)
-            )
+            .background(if (isSelected) darkGreen else Color.White, RoundedCornerShape(16.dp))
             .padding(vertical = 12.dp),
-
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-
-        Text("Mar", fontSize = 12.sp,
-            color = if (isSelected) Color.White else Color.Gray)
-
-        Text(
-            day,
-            fontWeight = FontWeight.Bold,
-            color = if (isSelected) Color.White else Color.Black
-        )
+        Text("Mar", fontSize = 12.sp, color = if (isSelected) Color.White else Color.Gray)
+        Text(day, fontWeight = FontWeight.Bold, color = if (isSelected) Color.White else Color.Black)
     }
 }
 
 @Composable
-fun MainCalorieCard(
-    accentColor: Color,
-    supplied: String,
-    left: String,
-    progress: Float
-) {
-
+fun MainCalorieCard(accentColor: Color, supplied: String, left: String, progress: Float) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(32.dp),
         color = Color.White,
         shadowElevation = 2.dp
     ) {
-
-        Column(
-            modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.size(180.dp)
-            ) {
-
+        Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(180.dp)) {
                 CircularProgressIndicator(
-                    progress = progress.coerceIn(0f,1f),
+                    progress = { progress.coerceIn(0f, 1f) },
                     modifier = Modifier.fillMaxSize(),
                     color = accentColor,
                     strokeWidth = 10.dp,
                     trackColor = accentColor.copy(alpha = 0.2f),
                     strokeCap = StrokeCap.Round
                 )
-
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-
                     Text(left, fontWeight = FontWeight.Black, fontSize = 28.sp)
-
                     Text("kcal left", fontSize = 14.sp, color = Color.Gray)
-
-                    Text("Supplied: $supplied",
-                        fontSize = 10.sp,
-                        color = Color.LightGray)
+                    Text("Supplied: $supplied", fontSize = 10.sp, color = Color.LightGray)
                 }
             }
         }
@@ -361,108 +233,77 @@ fun MainCalorieCard(
 }
 
 @Composable
-fun MacroItem(label:String,value:String,progress:Float,modifier:Modifier){
-
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        color = Color.White
-    ){
-
-        Column(
-            modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ){
-
-            Text(label,fontSize = 12.sp,fontWeight = FontWeight.Bold)
-
+fun MacroItem(label: String, value: String, progress: Float, modifier: Modifier) {
+    Surface(modifier = modifier, shape = RoundedCornerShape(20.dp), color = Color.White) {
+        Column(modifier = Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
-
             LinearProgressIndicator(
-                progress = { progress.coerceIn(0f,1f) },
+                progress = { progress.coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth().height(6.dp),
                 color = Color(0xFFB9F6CA),
                 trackColor = Color(0xFFB9F6CA).copy(alpha = 0.2f),
                 strokeCap = StrokeCap.Round
             )
-
             Spacer(modifier = Modifier.height(8.dp))
-
-            Text(value,fontSize = 10.sp,color = Color.Gray)
+            Text(value, fontSize = 10.sp, color = Color.Gray)
         }
     }
 }
 
 @Composable
-fun FoodResultItem(food:Food,accentColor:Color,onAddClick:()->Unit){
-
+fun FoodResultItem(
+    food: Food,
+    accentColor: Color,
+    onItemClick: () -> Unit, // Klik seluruh item
+    onAddQuickClick: () -> Unit // Klik icon plus
+) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onItemClick() }, // Navigasi ke AddNutritionScreen
         shape = RoundedCornerShape(16.dp),
         color = Color.White
-    ){
-
+    ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
-        ){
-
-            Column(modifier = Modifier.weight(1f)){
-
-                Text(food.name,fontWeight = FontWeight.Bold)
-
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(food.name, fontWeight = FontWeight.Bold)
                 Text(
                     "${food.calories} kcal | P: ${food.protein}g | C: ${food.carbs}g",
                     fontSize = 12.sp,
                     color = Color.Gray
                 )
             }
-
             IconButton(
-                onClick = onAddClick,
-                modifier = Modifier.background(
-                    accentColor.copy(alpha = 0.2f),
-                    CircleShape
-                )
-            ){
-
-                Icon(Icons.Rounded.Add,contentDescription = null)
+                onClick = onAddQuickClick,
+                modifier = Modifier.background(accentColor.copy(alpha = 0.2f), CircleShape)
+            ) {
+                Icon(Icons.Rounded.Add, contentDescription = null)
             }
         }
     }
 }
 
 @Composable
-fun MealCategoryCard(title:String,kcal:String,icon:ImageVector,onAdd:()->Unit){
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = Color.White
-    ){
-
+fun MealCategoryCard(title: String, kcal: String, icon: ImageVector, onAdd: () -> Unit) {
+    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), color = Color.White) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
-        ){
-
-            Row(verticalAlignment = Alignment.CenterVertically){
-
-                Icon(icon,contentDescription = null,tint = Color.Gray)
-
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, contentDescription = null, tint = Color.Gray)
                 Spacer(modifier = Modifier.width(12.dp))
-
-                Text(title,fontWeight = FontWeight.Bold)
+                Text(title, fontWeight = FontWeight.Bold)
             }
-
-            Row(verticalAlignment = Alignment.CenterVertically){
-
-                Text(kcal,color = Color.Gray)
-
-                IconButton(onClick = onAdd){
-
-                    Icon(Icons.Rounded.Add,contentDescription = null)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(kcal, color = Color.Gray)
+                IconButton(onClick = onAdd) {
+                    Icon(Icons.Rounded.Add, contentDescription = null)
                 }
             }
         }

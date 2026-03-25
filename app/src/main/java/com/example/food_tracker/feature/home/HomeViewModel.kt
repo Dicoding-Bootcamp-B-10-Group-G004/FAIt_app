@@ -1,15 +1,8 @@
 package com.example.food_tracker.feature.home
 
-import android.content.Context
-import android.graphics.Bitmap
-import android.util.Log
-import androidx.compose.runtime.State
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.food_tracker.data.local.CsvNutritionReader
 import com.example.food_tracker.data.local.UserDataStore
 import com.example.food_tracker.data.ml.FoodClassifier
 import com.example.food_tracker.data.repository.FoodRepositoryImpl
@@ -27,134 +20,84 @@ class HomeViewModel(
     var state by mutableStateOf(HomeState())
         private set
 
-    private val _allFoods = mutableStateOf<List<Food>>(emptyList())
-    private val _searchResults = mutableStateOf<List<Food>>(emptyList())
-    val searchResults: State<List<Food>> = _searchResults
+    // Goal kalori harian (Bisa diatur dinamis nanti)
+    var calorieGoal by mutableStateOf(2000.0)
+        private set
+
+    // State internal untuk menyimpan semua data makanan dari CSV
+    private var _allFoods by mutableStateOf<List<Food>>(emptyList())
 
     private val foodClassifier = FoodClassifier()
 
     init {
-        // Load CSV makanan
+        loadFoods()
+        observeNutritionData()
+    }
+
+    private fun loadFoods() {
         viewModelScope.launch {
             val foods = withContext(Dispatchers.IO) {
                 repository.getAllFoodFromCsv()
             }
-            _allFoods.value = foods
+            _allFoods = foods
         }
-
-        // Observe DataStore
-        observeNutritionData()
-    }
-
-    private fun updateState(
-        calories: Double? = null,
-        protein: Double? = null,
-        carbs: Double? = null,
-        fat: Double? = null
-    ) {
-        state = state.copy(
-            suppliedCalories = calories ?: state.suppliedCalories,
-            proteinCount = protein ?: state.proteinCount,
-            carbsCount = carbs ?: state.carbsCount,
-            fatCount = fat ?: state.fatCount
-        )
     }
 
     private fun observeNutritionData() {
         viewModelScope.launch {
-            userDataStore.getSuppliedCals().collectLatest { cals ->
-                Log.d("FOOD_TRACKER", "Calories updated: $cals")
-                updateState(calories = cals ?: 0.0)
+            userDataStore.getSuppliedCals().collectLatest {
+                state = state.copy(suppliedCalories = it ?: 0.0)
             }
         }
-
         viewModelScope.launch {
-            userDataStore.getProtein().collectLatest { protein ->
-                updateState(protein = protein ?: 0.0)
+            userDataStore.getProtein().collectLatest {
+                state = state.copy(proteinCount = it ?: 0.0)
             }
         }
-
         viewModelScope.launch {
-            userDataStore.getCarbs().collectLatest { carbs ->
-                updateState(carbs = carbs ?: 0.0)
+            userDataStore.getCarbs().collectLatest {
+                state = state.copy(carbsCount = it ?: 0.0)
             }
         }
-
         viewModelScope.launch {
-            userDataStore.getFat().collectLatest { fat ->
-                updateState(fat = fat ?: 0.0)
+            userDataStore.getFat().collectLatest {
+                state = state.copy(fatCount = it ?: 0.0)
             }
         }
     }
 
-    fun processFoodPhoto(bitmap: Bitmap, context: Context) {
-        val csvReader = CsvNutritionReader(context)
-        foodClassifier.classifyImage(bitmap) { detectedName ->
-            val nutrition = csvReader.getNutritionData(detectedName)
-            nutrition?.let { data ->
-                viewModelScope.launch {
-                    repository.insertFoodHistory(
-                        Food(
-                            name = detectedName,
-                            calories = data.calories.toInt(),
-                            protein = data.protein.toString(),
-                            carbs = data.carbs.toString(),
-                            fat = data.fat.toString(),
-                            unit = "100g"
-                        )
-                    )
-                }
-            }
-        }
+    // FIX: Fungsi ini yang dicari oleh DetectionResultScreen
+    fun getFoodByName(name: String): Food? {
+        // Mencocokkan nama label dari ML dengan kolom 'name' di CSV (Case Insensitive)
+        return _allFoods.find { it.name.equals(name, ignoreCase = true) }
     }
 
     fun addFoodDirect(food: Food, portion: Int) {
         viewModelScope.launch {
-            val calories = food.calories * portion
-            val protein = (food.protein.replace(",", ".").toDoubleOrNull() ?: 0.0) * portion
-            val carbs = (food.carbs.replace(",", ".").toDoubleOrNull() ?: 0.0) * portion
-            val fat = (food.fat.replace(",", ".").toDoubleOrNull() ?: 0.0) * portion
+            // Biasanya data di CSV itu per 100g, jadi kita bagi 100 untuk porsinya
+            val multiplier = portion.toDouble() / 100.0
 
-            Log.d("FOOD_TRACKER", "Adding food: ${food.name}")
-            Log.d("FOOD_TRACKER", "Calories added: $calories")
+            val calories = (food.calories * multiplier).toInt()
+            val protein = (food.protein.replace(",", ".").toDoubleOrNull() ?: 0.0) * multiplier
+            val carbs = (food.carbs.replace(",", ".").toDoubleOrNull() ?: 0.0) * multiplier
+            val fat = (food.fat.replace(",", ".").toDoubleOrNull() ?: 0.0) * multiplier
 
             repository.insertFoodHistory(
-                Food(
-                    name = food.name,
+                food.copy(
                     calories = calories,
-                    protein = protein.toString(),
-                    carbs = carbs.toString(),
-                    fat = fat.toString(),
-                    unit = food.unit
+                    protein = String.format("%.1f", protein),
+                    carbs = String.format("%.1f", carbs),
+                    fat = String.format("%.1f", fat)
                 )
             )
         }
     }
 
-    fun searchFood(query: String) {
-        if (query.isBlank()) {
-            _searchResults.value = emptyList()
-            return
-        }
-
-        _searchResults.value = _allFoods.value.filter {
-            it.name.contains(query, ignoreCase = true)
-        }
-    }
-
-    fun getFoodByName(name: String): Food? {
-        return _allFoods.value.find { it.name.equals(name, ignoreCase = true) }
-    }
-
     fun getMacroAchievement(): Triple<Boolean, Boolean, Boolean> {
-        val proteinGoal = 120
-        val carbsGoal = 250
-        val caloriesGoal = 2000
-
-        val proteinReached = state.proteinCount >= proteinGoal
-        val carbsReached = state.carbsCount >= carbsGoal
-        val caloriesReached = state.suppliedCalories >= caloriesGoal
-
-        return Triple(proteinReached, carbsReached, caloriesReached)
+        return Triple(
+            state.proteinCount >= 96,
+            state.carbsCount >= 385,
+            state.suppliedCalories >= calorieGoal
+        )
     }
 }

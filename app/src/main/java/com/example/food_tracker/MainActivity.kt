@@ -2,6 +2,7 @@ package com.example.food_tracker
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -27,6 +28,7 @@ import com.example.food_tracker.core.ui.theme.LemonWhite
 import com.example.food_tracker.data.local.UserDataStore
 import com.example.food_tracker.data.repository.FoodRepositoryImpl
 import com.example.food_tracker.domain.usecase.AddFoodUseCase
+import com.example.food_tracker.feature.addfood.AddFoodScreen
 import com.example.food_tracker.feature.addfood.AddFoodViewModel
 import com.example.food_tracker.feature.camera.CameraScreen
 import com.example.food_tracker.feature.camera.CameraViewModel
@@ -62,9 +64,10 @@ class MainActivity : ComponentActivity() {
 fun FoodTrackerApp() {
     val navController = rememberNavController()
     val context = LocalContext.current
-    val userDataStore = remember { UserDataStore(context.applicationContext) }
 
+    val userDataStore = remember { UserDataStore(context.applicationContext) }
     val repository = remember { FoodRepositoryImpl(context.applicationContext, userDataStore) }
+
     val homeViewModel = remember { HomeViewModel(repository, userDataStore) }
     val profileViewModel = remember { ProfileViewModel(userDataStore) }
 
@@ -80,29 +83,29 @@ fun FoodTrackerApp() {
     }
 
     if (startRoute == null) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = Color(0xFF4CAF50))
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
         }
     } else {
+
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route
 
         Scaffold(
             bottomBar = {
-                if (
-                    currentRoute == "home" ||
-                    currentRoute == "dashboard" ||
-                    currentRoute == "profile"
-                ) {
+                if (currentRoute in listOf("home", "dashboard", "profile")) {
                     BottomBar(navController)
                 }
             }
-        ) { paddingValues ->
+        ) { padding ->
+
             NavHost(
                 navController = navController,
                 startDestination = startRoute!!,
-                modifier = Modifier.padding(paddingValues)
+                modifier = Modifier.padding(padding)
             ) {
+
+                // ONBOARDING
                 composable("onboarding") {
                     OnboardingScreen(
                         userDataStore = userDataStore,
@@ -114,10 +117,32 @@ fun FoodTrackerApp() {
                     )
                 }
 
+                // ✅ ADD FOOD (FIX PARAM)
+                composable("add_food?name={name}") { backStackEntry ->
+                    val name = backStackEntry.arguments?.getString("name")
+
+                    AddFoodScreen(
+                        viewModel = addFoodViewModel,
+                        prefillName = name
+                    )
+                }
+
+                // HOME
                 composable("home") {
                     HomeScreen(
                         homeViewModel = homeViewModel,
-                        addFoodViewModel = addFoodViewModel
+                        addFoodViewModel = addFoodViewModel,
+
+                        // ✅ FIX: encode biar aman
+                        onFoodClick = { food ->
+                            val encoded = Uri.encode(food.name)
+                            navController.navigate("add_food?name=$encoded")
+                        },
+
+                        onNavigateToAddFood = { name ->
+                            val encoded = Uri.encode(name)
+                            navController.navigate("add_food?name=$encoded")
+                        }
                     )
                 }
 
@@ -125,26 +150,35 @@ fun FoodTrackerApp() {
                     StatsScreen(homeViewModel)
                 }
 
+                // CAMERA
                 composable("camera") {
                     CameraPermissionWrapper {
+
                         val cameraViewModel: CameraViewModel = viewModel(
                             factory = CameraViewModelFactory(context.applicationContext)
                         )
+
                         CameraScreen(
                             viewModel = cameraViewModel,
                             homeViewModel = homeViewModel,
-                            onImageCaptured = { bitmap ->
-                                homeViewModel.processFoodPhoto(bitmap, context)
-                                navController.navigate("home") {
-                                    popUpTo("home") { inclusive = true }
-                                }
+
+                            // ✅ FIX TOTAL (INI YANG BIKIN STUCK KEMARIN)
+                            onImageCaptured = {
                             },
+
+                            onNavigateToAddFood = { name ->
+                                val encoded = Uri.encode(name)
+                                navController.navigate("add_food?name=$encoded")
+                            },
+
                             onClose = { navController.popBackStack() }
                         )
                     }
                 }
 
-                composable("profile") { ProfileScreen(viewModel = profileViewModel) }
+                composable("profile") {
+                    ProfileScreen(profileViewModel)
+                }
             }
         }
     }
@@ -153,20 +187,34 @@ fun FoodTrackerApp() {
 @Composable
 fun CameraPermissionWrapper(content: @Composable () -> Unit) {
     val context = LocalContext.current
+
     var hasPermission by remember {
-        mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        )
     }
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { hasPermission = it }
+
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        hasPermission = it
+    }
 
     if (hasPermission) {
         content()
     } else {
-        LaunchedEffect(Unit) { launcher.launch(Manifest.permission.CAMERA) }
+        LaunchedEffect(Unit) {
+            launcher.launch(Manifest.permission.CAMERA)
+        }
     }
 }
 
 @Composable
 fun BottomBar(navController: NavHostController) {
+
     val items = listOf(
         Screen("home", Icons.Rounded.Home, "Home"),
         Screen("dashboard", Icons.Rounded.BarChart, "Stats"),
@@ -175,17 +223,25 @@ fun BottomBar(navController: NavHostController) {
     )
 
     NavigationBar(containerColor = Color.White) {
+
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentDestination = navBackStackEntry?.destination
 
         items.forEach { screen ->
+
             NavigationBarItem(
                 icon = { Icon(screen.icon, contentDescription = screen.title) },
                 label = { Text(screen.title) },
-                selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+
+                selected = currentDestination?.hierarchy?.any {
+                    it.route == screen.route
+                } == true,
+
                 onClick = {
                     navController.navigate(screen.route) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
                         launchSingleTop = true
                         restoreState = true
                     }

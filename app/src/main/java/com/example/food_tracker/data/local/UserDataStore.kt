@@ -14,6 +14,20 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "us
 
 class UserDataStore(private val context: Context) {
 
+    private val CALORIES_GOAL = doublePreferencesKey("calories_goal")
+
+    suspend fun saveCalorieGoal(value: Double) {
+        context.dataStore.edit {
+            it[CALORIES_GOAL] = value
+        }
+    }
+
+    fun getCalorieGoal(): Flow<Double?> {
+        return context.dataStore.data.map {
+            it[CALORIES_GOAL]
+        }
+    }
+
     private companion object {
         val WEIGHT = doublePreferencesKey("weight")
         val HEIGHT = doublePreferencesKey("height")

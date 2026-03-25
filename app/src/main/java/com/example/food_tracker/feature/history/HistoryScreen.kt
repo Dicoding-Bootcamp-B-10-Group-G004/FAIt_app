@@ -20,6 +20,9 @@ fun HistoryScreen() {
     val softGreen = Color(0xFFB9F6CA)
     val dates = (1..31).toList() // Contoh list tanggal
 
+
+
+
     Column(
         modifier = Modifier
             .fillMaxSize()

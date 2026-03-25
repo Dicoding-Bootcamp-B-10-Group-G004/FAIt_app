@@ -6,5 +6,6 @@ data class Food(
     val fat: String,
     val carbs: String,
     val protein: String,
-    val unit: String // Untuk kolom 'satuan' di CSV lo
+    val unit: String, // Untuk kolom 'satuan' di CSV lo
+    val mealType: String = "Lunch"
 )

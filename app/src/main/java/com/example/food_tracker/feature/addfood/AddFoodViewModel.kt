@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.food_tracker.domain.model.Food
 import com.example.food_tracker.domain.usecase.AddFoodUseCase
 import kotlinx.coroutines.launch
 
@@ -17,34 +18,44 @@ class AddFoodViewModel(
 
     fun onEvent(event: AddFoodEvent) {
         when (event) {
+
             is AddFoodEvent.OnSearchQueryChange -> {
                 state = state.copy(searchQuery = event.query)
                 searchFood(event.query)
             }
-            is AddFoodEvent.OnFoodSelected -> {
-                viewModelScope.launch {
-                    // Simpan data ke DataStore melalui UseCase
-                    addFoodUseCase.saveFoodToHistory(event.food)
 
-                    // Reset query setelah berhasil klik biar search bar bersih lagi
-                    state = state.copy(searchQuery = "", searchResults = emptyList())
-                }
+            is AddFoodEvent.OnFoodSelected -> {
+                state = state.copy(selectedFood = event.food)
+            }
+
+            is AddFoodEvent.OnPortionChange -> {
+                state = state.copy(portion = event.portion)
+            }
+
+            is AddFoodEvent.OnMealChange -> { // ✅ FIX
+                state = state.copy(mealType = event.mealType)
+            }
+
+            is AddFoodEvent.OnSave -> {
+                saveFood()
             }
         }
     }
 
-    fun addFoodWithPortion(food: com.example.food_tracker.domain.model.Food, portion: Int) {
+    private fun saveFood() {
+        val food = state.selectedFood ?: return
 
         viewModelScope.launch {
-
             val updatedFood = food.copy(
-                calories = food.calories * portion,
-                protein = (food.protein.toDoubleOrNull() ?: 0.0 * portion).toString(),
-                carbs = (food.carbs.toDoubleOrNull() ?: 0.0 * portion).toString(),
-                fat = (food.fat.toDoubleOrNull() ?: 0.0 * portion).toString()
+                calories = food.calories * state.portion,
+                protein = ((food.protein.toDoubleOrNull() ?: 0.0) * state.portion).toString(),
+                carbs = ((food.carbs.toDoubleOrNull() ?: 0.0) * state.portion).toString(),
+                fat = ((food.fat.toDoubleOrNull() ?: 0.0) * state.portion).toString()
             )
 
             addFoodUseCase.saveFoodToHistory(updatedFood)
+
+            state = AddFoodState() // reset
         }
     }
 

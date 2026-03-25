@@ -2,12 +2,11 @@ package com.example.food_tracker.feature.camera
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.Add
@@ -19,11 +18,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.food_tracker.data.ml.SnappedResult
+import com.example.food_tracker.domain.model.Food
 import com.example.food_tracker.feature.home.HomeViewModel
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,15 +33,12 @@ fun DetectionResultScreen(
     onBack: () -> Unit,
     onConfirm: (Bitmap) -> Unit
 ) {
-    val softGreen = Color(0xFFB9F6CA)
-    
-    // Get distinct labels and map to Food objects from repository
-    val distinctLabels = remember(snappedResult.result.detections) {
-        snappedResult.result.detections.map { it.label }.distinct()
-    }
-    
-    val detectedFoods = remember(distinctLabels, homeViewModel) {
-        distinctLabels.mapNotNull { label ->
+    val darkGreen = Color(0xFF006400)
+
+    // Logic untuk mencocokkan hasil deteksi ML dengan data di CSV melalui ViewModel
+    val detectedFoods: List<Food> = remember(snappedResult, homeViewModel) {
+        val labels = snappedResult.result.detections.map { it.label }.distinct()
+        labels.mapNotNull { label ->
             homeViewModel.getFoodByName(label)
         }
     }
@@ -49,33 +46,26 @@ fun DetectionResultScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Detection Result") },
+                title = { Text("Hasil Deteksi", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
         }
     ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize(),
+            modifier = Modifier.padding(innerPadding).fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(300.dp),
+                    modifier = Modifier.fillMaxWidth().height(250.dp),
                     shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    elevation = CardDefaults.cardElevation(8.dp)
                 ) {
                     Box {
                         Image(
@@ -89,77 +79,86 @@ fun DetectionResultScreen(
                 }
             }
 
-            item {
-                Text(
-                    text = "Found ${detectedFoods.size} items",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.fillMaxWidth()
-                )
+            // Jika label dari ML tidak ketemu di CSV
+            if (detectedFoods.isEmpty()) {
+                item {
+                    Text(
+                        "Makanan tidak ditemukan di database (CSV)",
+                        color = Color.Gray,
+                        modifier = Modifier.padding(top = 20.dp)
+                    )
+                }
             }
 
+            // Menampilkan list makanan yang cocok dari CSV
             items(detectedFoods) { food ->
-                var portion by remember { mutableStateOf("1") }
-                
+                var portionText by remember { mutableStateOf("100") }
+
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     color = Color.White,
                     shadowElevation = 2.dp
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(food.name, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                                Text(
-                                    "${food.calories} kcal | P: ${food.protein}g | C: ${food.carbs}g",
-                                    fontSize = 12.sp,
-                                    color = Color.Gray
-                                )
-                            }
-                            
+                    Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(food.name, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                        Text("${food.calories} kcal / 100g", fontSize = 14.sp, color = Color.Gray)
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            // Memanggil fungsi NutrientText yang ada di bawah
+                            NutrientText(value = "${food.carbs}g", label = "Carbs")
+                            NutrientText(value = "${food.protein}g", label = "Protein")
+                            NutrientText(value = "${food.fat}g", label = "Fat")
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             OutlinedTextField(
-                                value = portion,
-                                onValueChange = { portion = it },
-                                modifier = Modifier.width(70.dp),
-                                label = { Text("Portion", fontSize = 10.sp) },
-                                shape = RoundedCornerShape(8.dp),
-                                singleLine = true
+                                value = portionText,
+                                onValueChange = { portionText = it },
+                                modifier = Modifier.weight(1f),
+                                label = { Text("Porsi") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                shape = RoundedCornerShape(12.dp)
                             )
-                            
                             Spacer(modifier = Modifier.width(8.dp))
-                            
-                            IconButton(
-                                onClick = {
-                                    val p = portion.toIntOrNull() ?: 1
-                                    homeViewModel.addFoodDirect(food, p)
-                                },
-                                modifier = Modifier.background(
-                                    softGreen.copy(alpha = 0.2f),
-                                    CircleShape
-                                )
-                            ) {
-                                Icon(Icons.Rounded.Add, contentDescription = null)
-                            }
+                            Text(food.unit, fontWeight = FontWeight.Bold)
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        Button(
+                            onClick = {
+                                val p = portionText.toIntOrNull() ?: 100
+                                homeViewModel.addFoodDirect(food, p)
+                                onBack()
+                            },
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(25.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = darkGreen)
+                        ) {
+                            Icon(Icons.Rounded.Add, null)
+                            Text(" Tambahkan ke Diary", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
-            
+
             item {
-                Spacer(modifier = Modifier.height(16.dp))
-                OutlinedButton(
-                    onClick = onBack,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Take Another Picture")
+                TextButton(onClick = onBack) {
+                    Text("Ambil Foto Lagi", color = Color.Gray)
                 }
-                Spacer(modifier = Modifier.height(32.dp))
             }
         }
+    }
+}
+
+// FIX ERROR: Fungsi ini harus ada supaya NutrientText tidak Unresolved Reference
+@Composable
+fun NutrientText(value: String, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(text = value, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Text(text = label, fontSize = 12.sp, color = Color.Gray)
     }
 }

@@ -36,6 +36,7 @@ fun CameraScreen(
     viewModel: CameraViewModel,
     homeViewModel: HomeViewModel,
     onImageCaptured: (Bitmap) -> Unit,
+    onNavigateToAddFood: (String) -> Unit,
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
@@ -43,19 +44,17 @@ fun CameraScreen(
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         when (viewModel.screenState) {
-            CameraScreenState.Camera, CameraScreenState.Searching -> {
+            CameraScreenState.Camera,
+            CameraScreenState.Searching -> {
                 Box(modifier = Modifier.fillMaxSize()) {
                     CameraPreview(foodDetector = viewModel.foodDetector)
-
-                    // Real-time overlay
                     DetectionOverlay(detections = viewModel.liveDetections)
 
-                    // UI Overlay
                     Column(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Top Bar
+                        // TOP BAR
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(24.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -65,15 +64,18 @@ fun CameraScreen(
                                 onClick = onClose,
                                 modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape)
                             ) {
-                                Icon(Icons.Rounded.Close, contentDescription = "Close", tint = Color.White)
+                                Icon(Icons.Rounded.Close, contentDescription = null, tint = Color.White)
                             }
-                            Text("Scan Food", color = Color.White, fontWeight = FontWeight.Bold)
-                            IconButton(onClick = {}, modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape)) {
-                                Icon(Icons.Rounded.FlashOn, contentDescription = "Flash", tint = Color.White)
+                            Text("Scan Makanan", color = Color.White, fontWeight = FontWeight.Bold)
+                            IconButton(
+                                onClick = { /* Toggle Flash */ },
+                                modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                            ) {
+                                Icon(Icons.Rounded.FlashOn, contentDescription = null, tint = Color.White)
                             }
                         }
 
-                        // Bottom Controls
+                        // BOTTOM CONTROLS
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -81,46 +83,49 @@ fun CameraScreen(
                                 .padding(bottom = 40.dp, top = 24.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                // Shutter Button
-                                Button(
-                                    onClick = {
-                                        if (viewModel.liveDetections.isNotEmpty()) {
-                                            viewModel.startSnapping()
-                                        } else {
-                                            Toast.makeText(context, "No detections found to snap", Toast.LENGTH_SHORT).show()
-                                        }
-                                    },
-                                    shape = CircleShape,
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (viewModel.screenState == CameraScreenState.Searching)
-                                            MaterialTheme.colorScheme.tertiaryContainer
-                                        else lemonWhite
-                                    ),
-                                    modifier = Modifier.size(80.dp)
-                                ) {
-                                    if (viewModel.screenState == CameraScreenState.Searching) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp),
-                                            color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                            strokeWidth = 3.dp
-                                        )
+                            Button(
+                                onClick = {
+                                    if (viewModel.liveDetections.isNotEmpty()) {
+                                        viewModel.startSnapping()
                                     } else {
-                                        Icon(Icons.Rounded.PhotoCamera, contentDescription = "Capture", tint = Color.Black)
+                                        Toast.makeText(context, "Tidak ada objek terdeteksi", Toast.LENGTH_SHORT).show()
                                     }
+                                },
+                                shape = CircleShape,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (viewModel.screenState == CameraScreenState.Searching)
+                                        MaterialTheme.colorScheme.tertiaryContainer else lemonWhite
+                                ),
+                                modifier = Modifier.size(80.dp)
+                            ) {
+                                if (viewModel.screenState == CameraScreenState.Searching) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black)
+                                } else {
+                                    Icon(Icons.Rounded.PhotoCamera, contentDescription = null, tint = Color.Black)
                                 }
                             }
                         }
                     }
                 }
             }
+
             CameraScreenState.Result -> {
                 viewModel.snappedResult?.let { result ->
                     DetectionResultScreen(
                         snappedResult = result,
                         homeViewModel = homeViewModel,
                         onBack = { viewModel.reset() },
-                        onConfirm = onImageCaptured
+                        onConfirm = { bitmap ->
+                            // FIX: Ambil label pertama dari list deteksi ML
+                            val detectedName = result.result.detections.firstOrNull()?.label ?: ""
+
+                            if (detectedName.isNotEmpty()) {
+                                onImageCaptured(bitmap)
+                                onNavigateToAddFood(detectedName)
+                            } else {
+                                Toast.makeText(context, "Gagal mengenali makanan", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     )
                 }
             }
@@ -135,11 +140,13 @@ fun CameraPreview(foodDetector: FoodDetector) {
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     val analysisExecutor = remember { Executors.newSingleThreadExecutor() }
 
+    DisposableEffect(Unit) {
+        onDispose { analysisExecutor.shutdown() }
+    }
+
     AndroidView(
         factory = { ctx ->
-            PreviewView(ctx).apply {
-                scaleType = PreviewView.ScaleType.FILL_CENTER
-            }
+            PreviewView(ctx).apply { scaleType = PreviewView.ScaleType.FILL_CENTER }
         },
         modifier = Modifier.fillMaxSize(),
         update = { previewView ->
@@ -148,7 +155,6 @@ fun CameraPreview(foodDetector: FoodDetector) {
                 val preview = Preview.Builder().build().also {
                     it.setSurfaceProvider(previewView.surfaceProvider)
                 }
-
                 val imageAnalysis = ImageAnalysis.Builder()
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
@@ -166,7 +172,7 @@ fun CameraPreview(foodDetector: FoodDetector) {
                         imageAnalysis
                     )
                 } catch (exc: Exception) {
-                    Log.e("CameraPreview", "Use case binding failed", exc)
+                    Log.e("CameraPreview", "Binding failed", exc)
                 }
             }, ContextCompat.getMainExecutor(context))
         }
