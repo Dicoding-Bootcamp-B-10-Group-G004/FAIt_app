@@ -2,6 +2,7 @@ package com.example.food_tracker.domain.usecase
 
 import android.graphics.Bitmap
 import com.example.food_tracker.domain.model.Food
+import com.example.food_tracker.domain.model.TrackedFood
 import com.example.food_tracker.data.repository.FoodRepositoryImpl
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.label.ImageLabeling
@@ -12,17 +13,18 @@ class AddFoodUseCase(
 ) {
     private val labeler = ImageLabeling.getClient(ImageLabelerOptions.DEFAULT_OPTIONS)
 
-    // Fungsi untuk simpan ke DataStore
-    suspend fun saveFoodToHistory(food: Food) {
-        repository.insertFoodHistory(food)
+    suspend fun saveFoodToHistory(food: TrackedFood) {
+        repository.insertTrackedFood(food)
     }
 
-    // Fungsi baru untuk search dari CSV
-    fun searchFoodFromCsv(query: String): List<Food> {
-        return repository.searchFood(query)
+    suspend fun updateTrackedFood(trackedFood: TrackedFood) {
+        repository.updateTrackedFood(trackedFood)
     }
 
-    // Klasifikasi AI tetap aman di sini
+    suspend fun getTrackedFoodById(id: String): TrackedFood? {
+        return repository.getTrackedFoodById(id)
+    }
+
     fun classifyImage(bitmap: Bitmap, onSuccess: (String) -> Unit) {
         val image = InputImage.fromBitmap(bitmap, 0)
         labeler.process(image)

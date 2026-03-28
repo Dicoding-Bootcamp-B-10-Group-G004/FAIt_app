@@ -16,5 +16,9 @@ val PrimaryContainerGreen = Color(0xFFE8F5E9)
 val GrayText = Color(0xFF757575)
 val DarkText = Color(0xFF2C3E50)
 
-// Warning / Danger (Opsional buat kalori berlebih)
+// Status Colors
+val UnderweightBlue = Color(0xFF64B5F6)
+val NormalWeightGreen = Color(0xFF81C784)
+val OverweightYellow = Color(0xFFFFD54F)
+val WarningOrange = Color(0xFFFFCC80)
 val ErrorRed = Color(0xFFBA1A1A)

@@ -1,0 +1,132 @@
+<resources>
+    <string name="app_name">FAIt</string>
+    <string name="settings">Pengaturan</string>
+    <string name="language">Bahasa</string>
+    <string name="english">Inggris</string>
+    <string name="indonesian">Indonesia</string>
+    <string name="profile">Profil</string>
+    <string name="stats">Statistik</string>
+    <string name="dietary_suggestion">Saran Diet</string>
+    <string name="loading">Memuat…</string>
+    <string name="error_api_key">Galat: API Key kosong. Silakan periksa local.properties dan bangun ulang proyek.</string>
+    <string name="error_gemini">Galat: %1$s\nPastikan model gemini-2.0-flash-exp tersedia di wilayah Anda.</string>
+    <string name="failed_suggestion">Gagal mendapatkan saran.</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Beranda</string>
+    <string name="nav_stats">Statistik</string>
+    <string name="nav_add">Tambah</string>
+    <string name="nav_profile">Profil</string>
+
+    <!-- Stats Screen -->
+    <string name="nutrition_stats">Statistik Nutrisi</string>
+    <string name="ai_dietary_suggestion">Saran Diet AI (Gemini)</string>
+    <string name="refresh_suggestion">Perbarui Saran</string>
+    <string name="no_suggestion_available">Belum ada saran tersedia. Klik perbarui untuk mendapatkan saran.</string>
+    <string name="weekly_accomplishments">Pencapaian Mingguan</string>
+    <string name="monthly_accomplishments">Pencapaian Bulanan</string>
+    <string name="calorie_trend">Tren Kalori (30 Hari Terakhir)</string>
+    <string name="legend_calories">Kalori</string>
+    <string name="legend_protein">Prot</string>
+    <string name="legend_carbs">Karbo</string>
+    <string name="legend_fat">Lemak</string>
+    <string name="legend_goal">Target</string>
+    <string name="legend_consumed">Dikonsumsi</string>
+
+    <!-- Home Screen -->
+    <string name="today">Hari Ini</string>
+    <string name="history">Riwayat</string>
+    <string name="return_to_today">Kembali ke Hari Ini</string>
+    <string name="adding_to">Menambahkan ke: %1$s (%2$s)</string>
+    <string name="search_food">Cari makanan…</string>
+    <string name="kcal_left">kkal tersisa</string>
+    <string name="supplied">Tercukupi: %1$s</string>
+    <string name="breakfast">Sarapan</string>
+    <string name="lunch">Makan Siang</string>
+    <string name="dinner">Makan Malam</string>
+    <string name="snack">Camilan</string>
+    <string name="other">Lainnya</string>
+    <string name="delete">Hapus</string>
+    <string name="add">Tambah</string>
+    <string name="ok">OKE</string>
+    <string name="cancel">Batal</string>
+    <string name="food_added_success">Makanan berhasil ditambahkan ke buku harian!</string>
+    <string name="food_added_direct_success">Berhasil menambahkan %1$s ke buku harian!</string>
+
+    <!-- Profile Screen -->
+    <string name="edit_profile">Ubah Profil</string>
+    <string name="weight_kg">Berat Badan (kg)</string>
+    <string name="height_cm">Tinggi Badan (cm)</string>
+    <string name="age">Usia</string>
+    <string name="gender">Jenis Kelamin</string>
+    <string name="male">Laki-laki</string>
+    <string name="female">Perempuan</string>
+    <string name="goal_label">Target</string>
+    <string name="activity_intensity">Intensitas Aktivitas</string>
+    <string name="save">Simpan</string>
+    <string name="weight">Berat</string>
+    <string name="height">Tinggi</string>
+    <string name="daily_calorie_goal">Target Kalori Harian</string>
+    <string name="bmi">IMT</string>
+    <string name="years">tahun</string>
+
+    <!-- Onboarding Screen -->
+    <string name="welcome">Selamat Datang!</string>
+    <string name="onboarding_subtitle">Mari siapkan profil Anda untuk mempersonalisasi pengalaman Anda</string>
+    <string name="biological_sex">Jenis Kelamin Biologis</string>
+    <string name="your_goal">Target Anda</string>
+    <string name="save_and_get_started">Simpan &amp; Mulai</string>
+    <string name="sedentary">Sedenter: sedikit atau tidak ada olahraga</string>
+    <string name="slightly_active">Sedikit aktif: olahraga ringan 1-3 hari/minggu</string>
+    <string name="moderately_active">Cukup aktif: olahraga sedang 3-5 hari/minggu</string>
+    <string name="very_active">Sangat aktif: olahraga berat 6-7 hari/minggu</string>
+    <string name="extra_active">Sangat aktif sekali: olahraga sangat berat atau pekerjaan fisik</string>
+    <string name="placeholder_weight">misal: 70</string>
+    <string name="placeholder_height">misal: 175</string>
+    <string name="placeholder_age">misal: 25</string>
+
+    <!-- Camera Screen -->
+    <string name="scan_food">Pindai Makanan</string>
+    <string name="no_object_detected">Tidak ada objek terdeteksi</string>
+    <string name="close">Tutup</string>
+    <string name="flash">Lampu Kilat</string>
+    <string name="capture">Ambil Gambar</string>
+    <string name="detection_results">Hasil Deteksi</string>
+    <string name="detected_foods">Makanan Terdeteksi</string>
+    <string name="no_matching_foods">Tidak ada makanan yang cocok ditemukan di database</string>
+    <string name="retake_photo">Ambil Ulang Foto</string>
+    <string name="back">Kembali</string>
+
+    <!-- Add Food Screen -->
+    <string name="edit_nutrition">Ubah Nutrisi</string>
+    <string name="confirm_nutrition">Konfirmasi Nutrisi</string>
+    <string name="food_name">Nama Makanan</string>
+    <string name="portion">Porsi</string>
+    <string name="gram">gram</string>
+    <string name="meal_category">Kategori Makan</string>
+    <string name="estimated_total_nutrition">Estimasi Total Nutrisi</string>
+    <string name="calories_format">🔥 Kalori: %1$s kkal</string>
+    <string name="protein_format">🥩 Protein: %1$s g</string>
+    <string name="carbs_format">🍞 Karbo: %1$s g</string>
+    <string name="fat_format">🍳 Lemak: %1$s g</string>
+    <string name="update_diary">Perbarui Buku Harian</string>
+    <string name="save_to_diary">Simpan ke Buku Harian</string>
+
+    <!-- BMI Status -->
+    <string name="bmi_underweight">Kekurangan Berat Badan</string>
+    <string name="bmi_normal">Berat Badan Normal</string>
+    <string name="bmi_overweight">Kelebihan Berat Badan</string>
+    <string name="bmi_obese">Obesitas</string>
+    <string name="bmi_unknown">Tidak Diketahui</string>
+
+    <!-- Goal values -->
+    <string name="goal_lose">Turunkan Berat Badan</string>
+    <string name="goal_maintain">Jaga Berat Badan</string>
+    <string name="goal_gain">Naikkan Berat Badan</string>
+
+    <!-- Food List Item -->
+    <string name="portion_format">Porsi: %1$d g • %2$d kkal</string>
+    <string name="protein_short">🥩 P: %1$s g</string>
+    <string name="carbs_short">🍞 C: %1$s g</string>
+    <string name="fat_short">🍳 F: %1$s g</string>
+</resources>

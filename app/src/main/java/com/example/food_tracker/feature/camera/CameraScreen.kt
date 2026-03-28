@@ -1,6 +1,5 @@
 package com.example.food_tracker.feature.camera
 
-import android.graphics.Bitmap
 import android.util.Log
 import android.widget.Toast
 import androidx.camera.core.CameraSelector
@@ -23,10 +22,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.navigation.NavController
+import com.example.food_tracker.R
+import com.example.food_tracker.core.ui.components.FTIconButton
 import com.example.food_tracker.data.ml.FoodDetector
 import com.example.food_tracker.feature.home.HomeViewModel
 import java.util.concurrent.Executors
@@ -35,12 +38,28 @@ import java.util.concurrent.Executors
 fun CameraScreen(
     viewModel: CameraViewModel,
     homeViewModel: HomeViewModel,
-    onImageCaptured: (Bitmap) -> Unit,
+    navController: NavController,
     onNavigateToAddFood: (String) -> Unit,
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
-    val lemonWhite = Color(0xFFFFFDF0)
+    val themeColors = MaterialTheme.colorScheme
+
+    // Observe result from AddFoodScreen using StateFlow or livedata via SavedStateHandle
+    val foodAdded = navController.currentBackStackEntry
+        ?.savedStateHandle
+        ?.getStateFlow("food_added", false)
+        ?.collectAsState()
+
+    val foodAddedSuccessMsg = stringResource(R.string.food_added_success)
+    val noObjectDetectedMsg = stringResource(R.string.no_object_detected)
+
+    LaunchedEffect(foodAdded?.value) {
+        if (foodAdded?.value == true) {
+            Toast.makeText(context, foodAddedSuccessMsg, Toast.LENGTH_SHORT).show()
+            navController.currentBackStackEntry?.savedStateHandle?.set("food_added", false)
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         when (viewModel.screenState) {
@@ -60,26 +79,36 @@ fun CameraScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            IconButton(
+                            FTIconButton(
+                                icon = Icons.Rounded.Close,
                                 onClick = onClose,
-                                modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                            ) {
-                                Icon(Icons.Rounded.Close, contentDescription = null, tint = Color.White)
-                            }
-                            Text("Scan Makanan", color = Color.White, fontWeight = FontWeight.Bold)
-                            IconButton(
+                                contentDescription = stringResource(R.string.close),
+                                containerColor = Color.Black.copy(alpha = 0.5f),
+                                contentColor = Color.White
+                            )
+                            Text(
+                                text = stringResource(R.string.scan_food),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                            FTIconButton(
+                                icon = Icons.Rounded.FlashOn,
                                 onClick = { /* Toggle Flash */ },
-                                modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                            ) {
-                                Icon(Icons.Rounded.FlashOn, contentDescription = null, tint = Color.White)
-                            }
+                                contentDescription = stringResource(R.string.flash),
+                                containerColor = Color.Black.copy(alpha = 0.5f),
+                                contentColor = Color.White
+                            )
                         }
 
                         // BOTTOM CONTROLS
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                                .background(
+                                    color = Color.Black.copy(alpha = 0.4f),
+                                    shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+                                )
                                 .padding(bottom = 40.dp, top = 24.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -88,20 +117,29 @@ fun CameraScreen(
                                     if (viewModel.liveDetections.isNotEmpty()) {
                                         viewModel.startSnapping()
                                     } else {
-                                        Toast.makeText(context, "Tidak ada objek terdeteksi", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, noObjectDetectedMsg, Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (viewModel.screenState == CameraScreenState.Searching)
-                                        MaterialTheme.colorScheme.tertiaryContainer else lemonWhite
+                                        themeColors.tertiaryContainer else themeColors.background
                                 ),
                                 modifier = Modifier.size(80.dp)
                             ) {
                                 if (viewModel.screenState == CameraScreenState.Searching) {
-                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black)
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = themeColors.onTertiaryContainer,
+                                        strokeWidth = 2.dp
+                                    )
                                 } else {
-                                    Icon(Icons.Rounded.PhotoCamera, contentDescription = null, tint = Color.Black)
+                                    Icon(
+                                        imageVector = Icons.Rounded.PhotoCamera,
+                                        contentDescription = stringResource(R.string.capture),
+                                        tint = themeColors.onBackground,
+                                        modifier = Modifier.size(32.dp)
+                                    )
                                 }
                             }
                         }
@@ -115,16 +153,8 @@ fun CameraScreen(
                         snappedResult = result,
                         homeViewModel = homeViewModel,
                         onBack = { viewModel.reset() },
-                        onConfirm = { bitmap ->
-                            // FIX: Ambil label pertama dari list deteksi ML
-                            val detectedName = result.result.detections.firstOrNull()?.label ?: ""
-
-                            if (detectedName.isNotEmpty()) {
-                                onImageCaptured(bitmap)
-                                onNavigateToAddFood(detectedName)
-                            } else {
-                                Toast.makeText(context, "Gagal mengenali makanan", Toast.LENGTH_SHORT).show()
-                            }
+                        onFoodClick = { food ->
+                            onNavigateToAddFood(food.name)
                         }
                     )
                 }

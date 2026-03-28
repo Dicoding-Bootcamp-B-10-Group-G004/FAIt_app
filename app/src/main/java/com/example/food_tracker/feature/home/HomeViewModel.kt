@@ -3,101 +3,136 @@ package com.example.food_tracker.feature.home
 import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.food_tracker.data.local.UserDataStore
-import com.example.food_tracker.data.ml.FoodClassifier
-import com.example.food_tracker.data.repository.FoodRepositoryImpl
 import com.example.food_tracker.domain.model.Food
+import com.example.food_tracker.domain.model.TrackedFood
+import com.example.food_tracker.domain.usecase.GetDietHistoryUseCase
+import com.example.food_tracker.domain.usecase.DeleteTrackedFoodUseCase
+import com.example.food_tracker.data.repository.FoodRepositoryImpl
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.*
 
 class HomeViewModel(
     private val repository: FoodRepositoryImpl,
-    private val userDataStore: UserDataStore
+    private val getDietHistoryUseCase: GetDietHistoryUseCase,
+    private val deleteTrackedFoodUseCase: DeleteTrackedFoodUseCase
 ) : ViewModel() {
 
     var state by mutableStateOf(HomeState())
         private set
 
-    // Goal kalori harian (Bisa diatur dinamis nanti)
-    var calorieGoal by mutableStateOf(2000.0)
-        private set
-
-    // State internal untuk menyimpan semua data makanan dari CSV
-    private var _allFoods by mutableStateOf<List<Food>>(emptyList())
-
-    private val foodClassifier = FoodClassifier()
+    private val _selectedDate = MutableStateFlow(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()))
 
     init {
-        loadFoods()
-        observeNutritionData()
+        ensureTodayHistory()
+        observeData()
     }
 
-    private fun loadFoods() {
+    private fun ensureTodayHistory() {
         viewModelScope.launch {
-            val foods = withContext(Dispatchers.IO) {
-                repository.getAllFoodFromCsv()
-            }
-            _allFoods = foods
+            repository.ensureDietHistoryForToday()
         }
     }
 
-    private fun observeNutritionData() {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeData() {
         viewModelScope.launch {
-            userDataStore.getSuppliedCals().collectLatest {
-                state = state.copy(suppliedCalories = it ?: 0.0)
-            }
-        }
-        viewModelScope.launch {
-            userDataStore.getProtein().collectLatest {
-                state = state.copy(proteinCount = it ?: 0.0)
-            }
-        }
-        viewModelScope.launch {
-            userDataStore.getCarbs().collectLatest {
-                state = state.copy(carbsCount = it ?: 0.0)
-            }
-        }
-        viewModelScope.launch {
-            userDataStore.getFat().collectLatest {
-                state = state.copy(fatCount = it ?: 0.0)
-            }
+            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            
+            _selectedDate
+                .flatMapLatest { date ->
+                    getDietHistoryUseCase(date)
+                }
+                .flowOn(Dispatchers.Default)
+                .map { dietHistory ->
+                    val isToday = dietHistory.date == todayStr
+                    val displayDate = if (isToday) "Today" else {
+                        try {
+                            val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(dietHistory.date)
+                            parsed?.let { SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(it) } ?: dietHistory.date
+                        } catch (e: Exception) {
+                            dietHistory.date
+                        }
+                    }
+
+                    val categoryNames = listOf("Breakfast", "Lunch", "Dinner", "Snack")
+                    val categories = categoryNames.map { name ->
+                        val foods = dietHistory.trackedFoods.filter { it.mealType == name }
+                        MealCategory(
+                            name = name,
+                            foods = foods,
+                            totalCalories = foods.sumOf { it.calories }.toInt()
+                        )
+                    }
+                    Triple(dietHistory, categories, displayDate)
+                }
+                .collect { (dietHistory, categories, displayDate) ->
+                    state = state.copy(
+                        selectedDate = dietHistory.date,
+                        displayDate = displayDate,
+                        isToday = dietHistory.date == todayStr,
+                        suppliedCalories = dietHistory.totalCalories,
+                        proteinCount = dietHistory.totalProtein,
+                        carbsCount = dietHistory.totalCarbs,
+                        fatCount = dietHistory.totalFat,
+                        calorieGoal = dietHistory.calorieGoal,
+                        proteinGoal = dietHistory.proteinGoal,
+                        carbsGoal = dietHistory.carbsGoal,
+                        fatGoal = dietHistory.fatGoal,
+                        proteinReached = dietHistory.proteinGoalReached,
+                        carbsReached = dietHistory.carbsGoalReached,
+                        caloriesReached = dietHistory.calorieGoalReached,
+                        categories = categories
+                    )
+                }
         }
     }
 
-    // FIX: Fungsi ini yang dicari oleh DetectionResultScreen
-    fun getFoodByName(name: String): Food? {
-        // Mencocokkan nama label dari ML dengan kolom 'name' di CSV (Case Insensitive)
-        return _allFoods.find { it.name.equals(name, ignoreCase = true) }
+    fun onDateSelected(date: String) {
+        _selectedDate.value = date
     }
 
-    fun addFoodDirect(food: Food, portion: Int) {
+    fun resetToToday() {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        _selectedDate.value = today
+    }
+
+    fun deleteFood(food: TrackedFood) {
         viewModelScope.launch {
-            // Biasanya data di CSV itu per 100g, jadi kita bagi 100 untuk porsinya
-            val multiplier = portion.toDouble() / 100.0
-
-            val calories = (food.calories * multiplier).toInt()
-            val protein = (food.protein.replace(",", ".").toDoubleOrNull() ?: 0.0) * multiplier
-            val carbs = (food.carbs.replace(",", ".").toDoubleOrNull() ?: 0.0) * multiplier
-            val fat = (food.fat.replace(",", ".").toDoubleOrNull() ?: 0.0) * multiplier
-
-            repository.insertFoodHistory(
-                food.copy(
-                    calories = calories,
-                    protein = String.format("%.1f", protein),
-                    carbs = String.format("%.1f", carbs),
-                    fat = String.format("%.1f", fat)
-                )
-            )
+            deleteTrackedFoodUseCase(food.id)
         }
+    }
+
+    suspend fun getFoodByName(name: String): Food? {
+        return repository.getFoodByName(name)
     }
 
     fun getMacroAchievement(): Triple<Boolean, Boolean, Boolean> {
         return Triple(
-            state.proteinCount >= 96,
-            state.carbsCount >= 385,
-            state.suppliedCalories >= calorieGoal
+            state.proteinCount >= state.proteinGoal,
+            state.carbsCount >= state.carbsGoal,
+            state.suppliedCalories >= state.calorieGoal
         )
+    }
+
+    fun addFoodDirect(food: Food, portion: Double, mealType: String = "Lunch") {
+        viewModelScope.launch {
+            val multiplier = portion / food.portion
+            
+            val trackedFood = TrackedFood(
+                name = food.name,
+                calories = food.calories * multiplier,
+                protein = food.protein * multiplier,
+                carbs = food.carbs * multiplier,
+                fat = food.fat * multiplier,
+                portion = portion,
+                mealType = mealType,
+                date = _selectedDate.value
+            )
+            repository.insertTrackedFood(trackedFood)
+        }
     }
 }

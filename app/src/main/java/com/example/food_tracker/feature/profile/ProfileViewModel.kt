@@ -6,13 +6,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.food_tracker.data.local.UserDataStore
+import com.example.food_tracker.data.repository.ProfileRepository
 import com.example.food_tracker.domain.model.UserProfile
 import com.example.food_tracker.domain.usecase.CalculateNutritionUseCase
+import com.example.food_tracker.domain.usecase.GetAppPreferencesUseCase
+import com.example.food_tracker.domain.usecase.SetLanguageUseCase
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 class ProfileViewModel(
-    private val userDataStore: UserDataStore,
+    private val profileRepository: ProfileRepository,
+    private val setLanguageUseCase: SetLanguageUseCase,
+    private val getAppPreferencesUseCase: GetAppPreferencesUseCase,
     private val calculateNutritionUseCase: CalculateNutritionUseCase = CalculateNutritionUseCase()
 ) : ViewModel() {
 
@@ -21,22 +26,31 @@ class ProfileViewModel(
 
     init {
         loadProfileData()
+        loadAppPreferences()
     }
 
     private fun loadProfileData() {
         viewModelScope.launch {
-            userDataStore.userProfileFlow.collect { profile ->
-                // Hanya update jika berat > 0 (menandakan data sudah pernah diisi)
+            profileRepository.userProfileFlow.collect { profile ->
                 if (profile.weight > 0.0) {
                     state = state.copy(
                         weight = profile.weight.toString(),
                         height = profile.height.toString(),
                         age = profile.age.toString(),
                         isMale = profile.isMale,
-                        activityLevel = profile.activityLevel
+                        activityLevel = profile.activityLevel,
+                        goal = profile.goal
                     )
                     calculateResult()
                 }
+            }
+        }
+    }
+
+    private fun loadAppPreferences() {
+        viewModelScope.launch {
+            getAppPreferencesUseCase().collect { prefs ->
+                state = state.copy(languageCode = prefs.languageCode)
             }
         }
     }
@@ -48,8 +62,15 @@ class ProfileViewModel(
             is ProfileEvent.AgeChanged -> state.copy(age = event.age)
             is ProfileEvent.GenderChanged -> state.copy(isMale = event.isMale)
             is ProfileEvent.ActivityLevelChanged -> state.copy(activityLevel = event.level)
+            is ProfileEvent.GoalChanged -> state.copy(goal = event.goal)
         }
         calculateResult()
+    }
+
+    fun setLanguage(languageCode: String) {
+        viewModelScope.launch {
+            setLanguageUseCase(languageCode)
+        }
     }
 
     private fun calculateResult() {
@@ -58,25 +79,21 @@ class ProfileViewModel(
             val h = state.height.toDoubleOrNull() ?: 0.0
             val a = state.age.toIntOrNull() ?: 0
 
-            // Jangan panggil usecase kalau input belum valid
             if (w <= 0.0 || h <= 0.0 || a <= 0) {
                 resetNutritionResults()
                 return
             }
 
-            val profile = UserProfile(w, h, a, state.isMale, state.activityLevel)
-            val totalCalories = calculateNutritionUseCase(profile)
-
-            if (totalCalories <= 0.0 || totalCalories.isNaN() || totalCalories.isInfinite()) {
-                resetNutritionResults()
-                return
-            }
+            val profile = UserProfile(w, h, a, state.isMale, state.activityLevel, state.goal)
+            val result = calculateNutritionUseCase(profile)
 
             state = state.copy(
-                result = String.format("%.0f", totalCalories),
-                protein = String.format("%.0fg", (totalCalories * 0.20) / 4),
-                carbs = String.format("%.0fg", (totalCalories * 0.50) / 4),
-                fat = String.format("%.0fg", (totalCalories * 0.30) / 9)
+                calorieGoal = String.format(Locale.getDefault(), "%.0f", result.calories),
+                proteinGoal = String.format(Locale.getDefault(), "%.0fg", result.protein),
+                carbsGoal = String.format(Locale.getDefault(), "%.0fg", result.carbs),
+                fatGoal = String.format(Locale.getDefault(), "%.0fg", result.fat),
+                bmi = String.format(Locale.getDefault(), "%.1f", result.bmi),
+                bmiStatus = result.bmiStatus
             )
         } catch (e: Exception) {
             Log.e("ProfileViewModel", "Crash di calculateResult: ${e.message}")
@@ -85,7 +102,14 @@ class ProfileViewModel(
     }
 
     private fun resetNutritionResults() {
-        state = state.copy(result = "0", protein = "0g", carbs = "0g", fat = "0g")
+        state = state.copy(
+            calorieGoal = "0",
+            proteinGoal = "0g",
+            carbsGoal = "0g",
+            fatGoal = "0g",
+            bmi = "0.0",
+            bmiStatus = "Unknown"
+        )
     }
 
     fun saveToLocal() {
@@ -96,11 +120,17 @@ class ProfileViewModel(
                 val a = state.age.toIntOrNull() ?: 0
 
                 if (w > 0 && h > 0 && a > 0) {
-                    userDataStore.saveProfile(w, h, a, state.isMale, state.activityLevel)
+                    profileRepository.saveProfile(
+                        UserProfile(w, h, a, state.isMale, state.activityLevel, state.goal)
+                    )
                 }
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Gagal simpan: ${e.message}")
             }
         }
+    }
+    
+    fun getActivityLevelResId(level: Double): Int {
+        return profileRepository.getActivityLevelResId(level)
     }
 }
