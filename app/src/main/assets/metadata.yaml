@@ -1,7 +1,7 @@
-description: Ultralytics YOLO26n model trained on /content/dataset/makanan_indo_Computer_Vision_Dataset/data.yaml
+description: Ultralytics YOLO26n model trained on /content/dataset/Food_Computer_Vision_Dataset/data.yaml
 author: Ultralytics
-date: '2026-03-10T06:51:15.625066'
-version: 8.4.21
+date: '2026-03-25T15:27:35.574502'
+version: 8.4.26
 license: AGPL-3.0 License (https://ultralytics.com/license)
 docs: https://docs.ultralytics.com
 stride: 32
@@ -14,18 +14,53 @@ names:
   0: ayam bakar
   1: ayam betutu
   2: ayam goreng
-  3: ayam pop
-  4: bakso
-  5: coto makassar
-  6: gado gado
-  7: gudeg
-  8: nasi goreng
-  9: pempek
-  10: rawon
-  11: rendang
-  12: sate madura
-  13: sate padang
-  14: soto
+  3: ayam panggang
+  4: ayam pop
+  5: bakso
+  6: bakwan
+  7: batagor
+  8: bihun
+  9: brokoli
+  10: bubur ayam
+  11: cakwe
+  12: cap cay kuah
+  13: coto makassar
+  14: dadar gulung
+  15: daging
+  16: gado gado
+  17: gudeg
+  18: ikan
+  19: ikan goreng
+  20: ikan mujair
+  21: klepon
+  22: lontong sayur
+  23: martabak manis
+  24: mie
+  25: mie ayam
+  26: mie goreng
+  27: nasi goreng
+  28: nasi padang
+  29: nasi putih
+  30: opor ayam
+  31: paha ayam
+  32: pempek
+  33: perkedel
+  34: rawon
+  35: rendang
+  36: risoles
+  37: roti
+  38: rujak buah
+  39: sate madura
+  40: sate padang
+  41: sayur asem
+  42: sosis
+  43: soto ayam
+  44: tahu goreng
+  45: telur ceplok
+  46: tempe goreng
+  47: terong balado
+  48: tumis kangkung
+  49: udang
 args:
   batch: 1
   fraction: 1.0

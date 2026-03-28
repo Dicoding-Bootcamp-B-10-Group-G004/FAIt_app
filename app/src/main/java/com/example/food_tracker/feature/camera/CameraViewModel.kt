@@ -21,7 +21,7 @@ class CameraViewModel(context: Context) : ViewModel() {
 
     private val availableModels = context.assets.list("")?.filter { it.endsWith(".tflite") } ?: emptyList()
     
-    val selectedModelPath = if (availableModels.contains("best_float32.tflite")) "best_float32.tflite"
+    val selectedModelPath = if (availableModels.contains("yolo26n_int8.tflite")) "yolo26n_int8.tflite"
                             else availableModels.firstOrNull() ?: ""
 
     var screenState by mutableStateOf(CameraScreenState.Camera)

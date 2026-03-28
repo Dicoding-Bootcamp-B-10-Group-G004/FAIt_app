@@ -69,7 +69,7 @@ class FoodRepositoryImpl(
         val foodList = mutableListOf<Food>()
 
         try {
-            val inputStream = context.assets.open("hasil_gizi_100gramm.csv")
+            val inputStream = context.assets.open("hasil_gizi_100gram.csv")
             val reader = BufferedReader(InputStreamReader(inputStream))
 
             reader.readLine() // Skip header
