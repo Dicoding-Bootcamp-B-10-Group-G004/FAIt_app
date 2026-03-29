@@ -39,6 +39,7 @@ fun ProfileScreen(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var showEditDialog by remember { mutableStateOf(false) }
+    var showPrefsDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = themeColors.background,
@@ -51,6 +52,13 @@ fun ProfileScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showPrefsDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Rounded.Settings,
+                            contentDescription = stringResource(R.string.settings),
+                            tint = themeColors.onSecondary
+                        )
+                    }
                     IconButton(onClick = { showEditDialog = true }) {
                         Icon(
                             imageVector = Icons.Rounded.Edit,
@@ -87,15 +95,6 @@ fun ProfileScreen(
 
             item { Spacer(modifier = Modifier.height(24.dp)) }
 
-            item(key = "language_selector") {
-                LanguageSelector(
-                    currentLanguageCode = state.languageCode,
-                    onLanguageSelected = { viewModel.setLanguage(it) }
-                )
-            }
-
-            item { Spacer(modifier = Modifier.height(24.dp)) }
-
             item(key = "profile_info") {
                 val activityResId = remember(state.activityLevel) {
                     viewModel.getActivityLevelResId(state.activityLevel)
@@ -106,6 +105,12 @@ fun ProfileScreen(
                     Goal.LOSE -> stringResource(R.string.goal_lose)
                     Goal.MAINTAIN -> stringResource(R.string.goal_maintain)
                     Goal.GAIN -> stringResource(R.string.goal_gain)
+                }
+
+                val languageLabel = if (state.languageCode == "en") {
+                    stringResource(R.string.english)
+                } else {
+                    stringResource(R.string.indonesian)
                 }
 
                 Column(
@@ -124,6 +129,7 @@ fun ProfileScreen(
                         activityDesc
                     )
                     ProfileInfoItem(Icons.Rounded.Flag, stringResource(R.string.goal_label), goalLabel)
+                    ProfileInfoItem(Icons.Rounded.Language, stringResource(R.string.language), languageLabel)
                 }
             }
         }
@@ -139,62 +145,97 @@ fun ProfileScreen(
                 }
             )
         }
-    }
-}
 
-@Composable
-fun LanguageSelector(
-    currentLanguageCode: String,
-    onLanguageSelected: (String) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.language),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            LanguageButton(
-                text = stringResource(R.string.english),
-                isSelected = currentLanguageCode == "en",
-                onClick = { onLanguageSelected("en") },
-                modifier = Modifier.weight(1f)
-            )
-            LanguageButton(
-                text = stringResource(R.string.indonesian),
-                isSelected = currentLanguageCode == "in",
-                onClick = { onLanguageSelected("in") },
-                modifier = Modifier.weight(1f)
+        if (showPrefsDialog) {
+            EditPreferencesDialog(
+                state = state,
+                viewModel = viewModel,
+                onDismiss = { showPrefsDialog = false },
+                onSave = {
+                    viewModel.savePreferences()
+                    showPrefsDialog = false
+                }
             )
         }
     }
 }
 
 @Composable
-fun LanguageButton(
+fun EditPreferencesDialog(
+    state: NutritionState,
+    viewModel: ProfileViewModel,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.edit_preferences), style = MaterialTheme.typography.titleLarge) },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.language),
+                    style = MaterialTheme.typography.labelLarge
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    LanguageOption(
+                        text = stringResource(R.string.english),
+                        isSelected = state.languageCode == "en",
+                        onClick = { viewModel.onEvent(ProfileEvent.LanguageChanged("en")) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    LanguageOption(
+                        text = stringResource(R.string.indonesian),
+                        isSelected = state.languageCode == "in",
+                        onClick = { viewModel.onEvent(ProfileEvent.LanguageChanged("in")) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onSave) {
+                Text(stringResource(R.string.save), fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.outline)
+            }
+        }
+    )
+}
+
+@Composable
+fun LanguageOption(
     text: String,
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Button(
+    Surface(
         onClick = onClick,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-        ),
         shape = RoundedCornerShape(12.dp),
+        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+        border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
         modifier = modifier
     ) {
-        Text(text)
+        Box(
+            modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+            )
+        }
     }
 }
 

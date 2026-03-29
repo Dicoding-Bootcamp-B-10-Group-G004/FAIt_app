@@ -10,6 +10,7 @@ import com.example.food_tracker.domain.usecase.DeleteTrackedFoodUseCase
 import com.example.food_tracker.data.repository.FoodRepositoryImpl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -25,10 +26,24 @@ class HomeViewModel(
         private set
 
     private val _selectedDate = MutableStateFlow(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()))
+    private var observeJob: Job? = null
 
     init {
         ensureTodayHistory()
+        loadAppPreferences()
         observeData()
+    }
+
+    private fun loadAppPreferences() {
+        viewModelScope.launch {
+            repository.appPreferencesFlow.collect { prefs ->
+                if (state.languageCode != prefs.languageCode) {
+                    state = state.copy(languageCode = prefs.languageCode)
+                    // Restart observation to refresh localized display strings
+                    observeData()
+                }
+            }
+        }
     }
 
     private fun ensureTodayHistory() {
@@ -39,8 +54,9 @@ class HomeViewModel(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observeData() {
-        viewModelScope.launch {
-            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        observeJob?.cancel()
+        observeJob = viewModelScope.launch {
+            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.forLanguageTag(state.languageCode)).format(Date())
             
             _selectedDate
                 .flatMapLatest { date ->
@@ -48,14 +64,13 @@ class HomeViewModel(
                 }
                 .flowOn(Dispatchers.Default)
                 .map { dietHistory ->
+                    val locale = Locale.forLanguageTag(state.languageCode)
                     val isToday = dietHistory.date == todayStr
-                    val displayDate = if (isToday) "Today" else {
-                        try {
-                            val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(dietHistory.date)
-                            parsed?.let { SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(it) } ?: dietHistory.date
-                        } catch (e: Exception) {
-                            dietHistory.date
-                        }
+                    val displayDate = try {
+                        val parsed = SimpleDateFormat("yyyy-MM-dd", locale).parse(dietHistory.date)
+                        parsed?.let { SimpleDateFormat("MMMM d, yyyy", locale).format(it) } ?: dietHistory.date
+                    } catch (e: Exception) {
+                        dietHistory.date
                     }
 
                     val categoryNames = listOf("Breakfast", "Lunch", "Dinner", "Snack")
@@ -96,7 +111,7 @@ class HomeViewModel(
     }
 
     fun resetToToday() {
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.forLanguageTag(state.languageCode)).format(Date())
         _selectedDate.value = today
     }
 

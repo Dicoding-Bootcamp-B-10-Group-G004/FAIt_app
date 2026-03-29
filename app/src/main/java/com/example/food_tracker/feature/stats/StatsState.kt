@@ -10,7 +10,8 @@ data class StatsState(
     val isLoading: Boolean = false,
     val dietarySuggestion: String? = null,
     val isSuggestionLoading: Boolean = false,
-    val lastSuggestionDate: String? = null
+    val lastSuggestionDate: String? = null,
+    val languageCode: String = "en"
 )
 
 data class GoalStats(

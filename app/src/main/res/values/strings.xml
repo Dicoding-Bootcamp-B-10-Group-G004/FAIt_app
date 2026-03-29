@@ -55,6 +55,7 @@
 
     <!-- Profile Screen -->
     <string name="edit_profile">Edit Profile</string>
+    <string name="edit_preferences">Edit Preferences</string>
     <string name="weight_kg">Weight (kg)</string>
     <string name="height_cm">Height (cm)</string>
     <string name="age">Age</string>

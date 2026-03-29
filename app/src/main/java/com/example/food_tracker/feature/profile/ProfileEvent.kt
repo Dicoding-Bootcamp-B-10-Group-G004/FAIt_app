@@ -9,4 +9,5 @@ sealed class ProfileEvent {
     data class GenderChanged(val isMale: Boolean): ProfileEvent()
     data class ActivityLevelChanged(val level: Double): ProfileEvent()
     data class GoalChanged(val goal: Goal): ProfileEvent()
+    data class LanguageChanged(val languageCode: String): ProfileEvent()
 }

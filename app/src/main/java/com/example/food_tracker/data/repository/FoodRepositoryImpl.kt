@@ -8,6 +8,7 @@ import com.example.food_tracker.data.local.entity.TrackedFoodEntity
 import com.example.food_tracker.domain.model.Food
 import com.example.food_tracker.domain.model.TrackedFood
 import com.example.food_tracker.domain.model.DietHistory
+import com.example.food_tracker.domain.model.AppPreferences
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.text.SimpleDateFormat
@@ -27,6 +28,8 @@ class FoodRepositoryImpl(
     val trackedFoods: Flow<List<TrackedFood>> = dao.getAllTrackedFoods()
         .map { entities -> entities.map { it.toTrackedFood() } }
         .flowOn(Dispatchers.IO)
+
+    val appPreferencesFlow: Flow<AppPreferences> = userDataStore.appPreferencesFlow
 
     fun getDietHistoryFlow(date: String): Flow<DietHistory> {
         return combine(

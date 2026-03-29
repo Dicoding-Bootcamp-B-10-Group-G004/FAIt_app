@@ -10,6 +10,7 @@ import com.example.food_tracker.data.local.UserDataStore
 import com.example.food_tracker.domain.model.DietHistory
 import com.example.food_tracker.domain.usecase.GetAllDietHistoriesUseCase
 import com.google.ai.client.generativeai.GenerativeModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -25,7 +26,9 @@ class StatsViewModel(
     var state by mutableStateOf(StatsState())
         private set
 
-    private val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    private var statsJob: Job? = null
+
+    private fun getSdf() = SimpleDateFormat("yyyy-MM-dd", Locale.forLanguageTag(state.languageCode))
 
     private val generativeModel by lazy {
         GenerativeModel(
@@ -35,8 +38,21 @@ class StatsViewModel(
     }
 
     init {
+        loadAppPreferences()
         loadStats()
         loadSavedSuggestion()
+    }
+
+    private fun loadAppPreferences() {
+        viewModelScope.launch {
+            userDataStore.appPreferencesFlow.collect { prefs ->
+                if (state.languageCode != prefs.languageCode) {
+                    state = state.copy(languageCode = prefs.languageCode)
+                    // Re-calculate stats to update localized labels (months, etc.)
+                    loadStats()
+                }
+            }
+        }
     }
 
     private fun loadSavedSuggestion() {
@@ -48,7 +64,7 @@ class StatsViewModel(
                 lastSuggestionDate = savedDate
             )
             
-            val today = sdf.format(Date())
+            val today = getSdf().format(Date())
             if (savedDate != today && state.dietHistories.isNotEmpty()) {
                 getDietarySuggestion()
             }
@@ -56,8 +72,9 @@ class StatsViewModel(
     }
 
     private fun loadStats() {
+        statsJob?.cancel()
         state = state.copy(isLoading = true)
-        getAllDietHistoriesUseCase().onEach { histories ->
+        statsJob = getAllDietHistoriesUseCase().onEach { histories ->
             val weeklyStats = (0..3).map { weeksAgo ->
                 val weekCalendar = Calendar.getInstance()
                 weekCalendar.add(Calendar.WEEK_OF_YEAR, -weeksAgo)
@@ -65,7 +82,7 @@ class StatsViewModel(
                 val year = weekCalendar.get(Calendar.YEAR)
                 
                 val weekHistories = histories.filter {
-                    val date = try { sdf.parse(it.date) } catch (e: Exception) { null }
+                    val date = try { getSdf().parse(it.date) } catch (e: Exception) { null }
                     if (date != null) {
                         val c = Calendar.getInstance()
                         c.time = date
@@ -83,7 +100,7 @@ class StatsViewModel(
                 val year = monthCalendar.get(Calendar.YEAR)
                 
                 val monthHistories = histories.filter {
-                    val date = try { sdf.parse(it.date) } catch (e: Exception) { null }
+                    val date = try { getSdf().parse(it.date) } catch (e: Exception) { null }
                     if (date != null) {
                         val c = Calendar.getInstance()
                         c.time = date
@@ -91,7 +108,7 @@ class StatsViewModel(
                     } else false
                 }
                 
-                val monthName = SimpleDateFormat("MMM", Locale.getDefault()).format(monthCalendar.time)
+                val monthName = SimpleDateFormat("MMM", Locale.forLanguageTag(state.languageCode)).format(monthCalendar.time)
                 calculateGoalStats(monthName, monthHistories)
             }.reversed()
 
@@ -105,7 +122,7 @@ class StatsViewModel(
                 isLoading = false
             )
 
-            val today = sdf.format(Date())
+            val today = getSdf().format(Date())
             if (state.lastSuggestionDate != today && histories.isNotEmpty()) {
                 getDietarySuggestion()
             }
@@ -124,8 +141,7 @@ class StatsViewModel(
             state = state.copy(isSuggestionLoading = true)
             try {
                 val profile = userDataStore.userProfileFlow.first()
-                val appPrefs = userDataStore.appPreferencesFlow.first()
-                val isIndonesian = appPrefs.languageCode == "in"
+                val isIndonesian = state.languageCode == "in"
                 
                 val top5Meals = state.dietHistories
                     .flatMap { it.trackedFoods }
@@ -193,7 +209,7 @@ class StatsViewModel(
                 val response = generativeModel.generateContent(prompt)
                 val suggestion = response.text ?: (if (isIndonesian) "Gagal mendapatkan saran." else "Failed to get suggestion.")
                 
-                val today = sdf.format(Date())
+                val today = getSdf().format(Date())
                 userDataStore.saveDietarySuggestion(suggestion, today)
                 
                 state = state.copy(
@@ -202,10 +218,10 @@ class StatsViewModel(
                     isSuggestionLoading = false
                 )
             } catch (e: Exception) {
-                val errorMsg = if (userDataStore.appPreferencesFlow.first().languageCode == "in") {
-                    "Galat: ${e.message}\nPastikan model gemini-2.0-flash-exp tersedia di wilayah Anda."
+                val errorMsg = if (state.languageCode == "in") {
+                    "Galat: ${e.message}\nPastikan model gemini-1.5-flash tersedia di wilayah Anda."
                 } else {
-                    "Error: ${e.message}\nMake sure gemini-2.0-flash-exp model is available in your region."
+                    "Error: ${e.message}\nMake sure gemini-1.5-flash model is available in your region."
                 }
                 state = state.copy(
                     dietarySuggestion = errorMsg,

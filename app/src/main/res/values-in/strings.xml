@@ -55,6 +55,7 @@
 
     <!-- Profile Screen -->
     <string name="edit_profile">Ubah Profil</string>
+    <string name="edit_preferences">Ubah Preferensi</string>
     <string name="weight_kg">Berat Badan (kg)</string>
     <string name="height_cm">Tinggi Badan (cm)</string>
     <string name="age">Usia</string>

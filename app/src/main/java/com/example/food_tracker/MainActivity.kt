@@ -7,6 +7,8 @@ import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivityResultRegistryOwner
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,9 +19,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalSavedStateRegistryOwner
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -27,6 +33,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import androidx.room.Room
+import androidx.room.RoomDatabase
 import com.example.food_tracker.core.navigation.Screen
 import com.example.food_tracker.core.ui.theme.FoodTrackerTheme
 import com.example.food_tracker.data.local.UserDataStore
@@ -56,37 +63,51 @@ import java.util.Locale
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        val userDataStore = UserDataStore(applicationContext)
+        val appPreferencesRepository = AppPreferencesRepository(userDataStore)
+        val getAppPreferencesUseCase = GetAppPreferencesUseCase(appPreferencesRepository)
+
         setContent {
-            val context = LocalContext.current
-            val userDataStore = remember { UserDataStore(context.applicationContext) }
-            val appPreferencesRepository = remember { AppPreferencesRepository(userDataStore) }
-            val getAppPreferencesUseCase = remember { GetAppPreferencesUseCase(appPreferencesRepository) }
-            
             val appPreferences by getAppPreferencesUseCase().collectAsState(initial = null)
+            val languageCode = appPreferences?.languageCode ?: "en"
             
-            LaunchedEffect(appPreferences?.languageCode) {
-                appPreferences?.languageCode?.let { lang ->
-                    updateLocale(this@MainActivity, lang)
-                }
+            val locale = remember(languageCode) { Locale.forLanguageTag(languageCode) }
+            
+            // Update default locale for non-Compose parts (like formatting in ViewModels)
+            LaunchedEffect(locale) {
+                Locale.setDefault(locale)
             }
 
-            FoodTrackerTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    FoodTrackerApp(userDataStore, appPreferencesRepository)
+            // Create a localized context for string resolution in Compose
+            val localizedContext = remember(languageCode) {
+                val config = Configuration(resources.configuration)
+                config.setLocale(locale)
+                createConfigurationContext(config)
+            }
+
+            // Provide the localized context and configuration to the composition.
+            // We also explicitly provide Activity-based owners because localizedContext 
+            // is not an Activity and would otherwise break components like rememberLauncherForActivityResult.
+            CompositionLocalProvider(
+                LocalContext provides localizedContext,
+                LocalConfiguration provides localizedContext.resources.configuration,
+                LocalActivityResultRegistryOwner provides this@MainActivity,
+                LocalOnBackPressedDispatcherOwner provides this@MainActivity,
+                LocalLifecycleOwner provides this@MainActivity,
+                LocalSavedStateRegistryOwner provides this@MainActivity,
+                LocalViewModelStoreOwner provides this@MainActivity
+            ) {
+                FoodTrackerTheme {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        FoodTrackerApp(userDataStore, appPreferencesRepository)
+                    }
                 }
             }
         }
-    }
-
-    private fun updateLocale(context: Context, languageCode: String) {
-        val locale = Locale(languageCode)
-        Locale.setDefault(locale)
-        val config = Configuration(context.resources.configuration)
-        config.setLocale(locale)
-        context.resources.updateConfiguration(config, context.resources.displayMetrics)
     }
 }
 
@@ -98,12 +119,16 @@ fun FoodTrackerApp(
     val navController = rememberNavController()
     val context = LocalContext.current
 
+    // Initialize Room with WAL to improve concurrency and prevent SQLITE_BUSY
     val db = remember {
         Room.databaseBuilder(
             context.applicationContext,
             AppDatabase::class.java,
             "food_tracker_db"
-        ).fallbackToDestructiveMigration().build()
+        )
+        .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+        .fallbackToDestructiveMigration()
+        .build()
     }
 
     val repository = remember { FoodRepositoryImpl(context.applicationContext, userDataStore, db.foodDao) }

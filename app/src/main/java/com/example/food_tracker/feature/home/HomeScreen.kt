@@ -272,7 +272,7 @@ fun HomeTopBarTitle(
             color = MaterialTheme.colorScheme.onSecondary.copy(alpha = 0.7f)
         )
         Text(
-            text = displayDate,
+            text = if (isToday) stringResource(R.string.today) else displayDate,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Black,
             color = MaterialTheme.colorScheme.onSecondary
@@ -322,10 +322,11 @@ private fun MacroRow(
         val carbsProgress = (carbsCount.toFloat() / carbsGoal.toFloat().coerceAtLeast(1f))
         val fatProgress = (fatCount.toFloat() / fatGoal.toFloat().coerceAtLeast(1f))
         val proteinProgress = (proteinCount.toFloat() / proteinGoal.toFloat().coerceAtLeast(1f))
-        
+
+        MacroItem(proteinLabel, "${proteinCount.toInt()}/${proteinGoal.toInt()}g", proteinProgress, Modifier.weight(1f), accentColor)
         MacroItem(carbsLabel, "${carbsCount.toInt()}/${carbsGoal.toInt()}g", carbsProgress, Modifier.weight(1f), accentColor)
         MacroItem(fatLabel, "${fatCount.toInt()}/${fatGoal.toInt()}g", fatProgress, Modifier.weight(1f), accentColor)
-        MacroItem(proteinLabel, "${proteinCount.toInt()}/${proteinGoal.toInt()}g", proteinProgress, Modifier.weight(1f), accentColor)
+
     }
 }
 

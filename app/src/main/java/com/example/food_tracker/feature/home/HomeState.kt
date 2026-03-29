@@ -7,7 +7,7 @@ import java.util.*
 @Immutable
 data class HomeState(
     val selectedDate: String = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()),
-    val displayDate: String = "Today",
+    val displayDate: String = "",
     val isToday: Boolean = true,
     val suppliedCalories: Double = 0.0,
     val proteinCount: Double = 0.0,
@@ -21,5 +21,6 @@ data class HomeState(
     val carbsReached: Boolean = false,
     val caloriesReached: Boolean = false,
     val categories: List<MealCategory> = emptyList(),
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val languageCode: String = "en"
 )

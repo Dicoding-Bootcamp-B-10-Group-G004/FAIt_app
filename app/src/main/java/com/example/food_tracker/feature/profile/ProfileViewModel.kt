@@ -51,6 +51,7 @@ class ProfileViewModel(
         viewModelScope.launch {
             getAppPreferencesUseCase().collect { prefs ->
                 state = state.copy(languageCode = prefs.languageCode)
+                calculateResult()
             }
         }
     }
@@ -63,6 +64,7 @@ class ProfileViewModel(
             is ProfileEvent.GenderChanged -> state.copy(isMale = event.isMale)
             is ProfileEvent.ActivityLevelChanged -> state.copy(activityLevel = event.level)
             is ProfileEvent.GoalChanged -> state.copy(goal = event.goal)
+            is ProfileEvent.LanguageChanged -> state.copy(languageCode = event.languageCode)
         }
         calculateResult()
     }
@@ -87,12 +89,13 @@ class ProfileViewModel(
             val profile = UserProfile(w, h, a, state.isMale, state.activityLevel, state.goal)
             val result = calculateNutritionUseCase(profile)
 
+            val locale = Locale.forLanguageTag(state.languageCode)
             state = state.copy(
-                calorieGoal = String.format(Locale.getDefault(), "%.0f", result.calories),
-                proteinGoal = String.format(Locale.getDefault(), "%.0fg", result.protein),
-                carbsGoal = String.format(Locale.getDefault(), "%.0fg", result.carbs),
-                fatGoal = String.format(Locale.getDefault(), "%.0fg", result.fat),
-                bmi = String.format(Locale.getDefault(), "%.1f", result.bmi),
+                calorieGoal = String.format(locale, "%.0f", result.calories),
+                proteinGoal = String.format(locale, "%.0fg", result.protein),
+                carbsGoal = String.format(locale, "%.0fg", result.carbs),
+                fatGoal = String.format(locale, "%.0fg", result.fat),
+                bmi = String.format(locale, "%.1f", result.bmi),
                 bmiStatus = result.bmiStatus
             )
         } catch (e: Exception) {
@@ -127,6 +130,12 @@ class ProfileViewModel(
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Gagal simpan: ${e.message}")
             }
+        }
+    }
+
+    fun savePreferences() {
+        viewModelScope.launch {
+            setLanguageUseCase(state.languageCode)
         }
     }
     
