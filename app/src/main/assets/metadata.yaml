@@ -1,7 +1,7 @@
-description: Ultralytics YOLO26n model trained on /content/dataset/Food_Computer_Vision_Dataset/data.yaml
+description: Ultralytics YOLO26n model trained on /kaggle/working/dataset/Food_Computer_Vision_Dataset/data.yaml
 author: Ultralytics
-date: '2026-03-25T15:27:35.574502'
-version: 8.4.26
+date: '2026-03-28T21:09:55.493451'
+version: 8.4.30
 license: AGPL-3.0 License (https://ultralytics.com/license)
 docs: https://docs.ultralytics.com
 stride: 32
@@ -20,47 +20,43 @@ names:
   6: bakwan
   7: batagor
   8: bihun
-  9: brokoli
-  10: bubur ayam
-  11: cakwe
-  12: cap cay kuah
-  13: coto makassar
-  14: dadar gulung
-  15: daging
-  16: gado gado
-  17: gudeg
-  18: ikan
-  19: ikan goreng
-  20: ikan mujair
-  21: klepon
-  22: lontong sayur
-  23: martabak manis
-  24: mie
-  25: mie ayam
-  26: mie goreng
-  27: nasi goreng
-  28: nasi padang
-  29: nasi putih
-  30: opor ayam
-  31: paha ayam
-  32: pempek
-  33: perkedel
-  34: rawon
-  35: rendang
-  36: risoles
-  37: roti
-  38: rujak buah
-  39: sate madura
-  40: sate padang
-  41: sayur asem
-  42: sosis
-  43: soto ayam
-  44: tahu goreng
-  45: telur ceplok
-  46: tempe goreng
-  47: terong balado
-  48: tumis kangkung
-  49: udang
+  9: bubur ayam
+  10: cakwe
+  11: cap cay kuah
+  12: coto makassar
+  13: dadar gulung
+  14: gado gado
+  15: gudeg
+  16: ikan goreng
+  17: ikan mujair
+  18: klepon
+  19: lontong sayur
+  20: martabak manis
+  21: mie
+  22: mie ayam
+  23: mie goreng
+  24: nasi goreng
+  25: nasi padang
+  26: nasi putih
+  27: opor ayam
+  28: paha ayam
+  29: pempek
+  30: perkedel
+  31: rawon
+  32: rendang
+  33: risoles
+  34: rujak buah
+  35: sate madura
+  36: sate padang
+  37: sayur asem
+  38: sosis
+  39: soto ayam
+  40: tahu goreng
+  41: telur ceplok
+  42: tempe goreng
+  43: terong balado
+  44: tumis kangkung
+  45: udang
 args:
   batch: 1
   fraction: 1.0
