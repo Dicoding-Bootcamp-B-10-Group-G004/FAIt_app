@@ -36,6 +36,9 @@ class CameraViewModel(context: Context) : ViewModel() {
     var snappedResult by mutableStateOf<SnappedResult?>(null)
         private set
 
+    var isFlashEnabled by mutableStateOf(false)
+        private set
+
     val foodDetector = FoodDetector(context, selectedModelPath)
 
     init {
@@ -60,6 +63,10 @@ class CameraViewModel(context: Context) : ViewModel() {
                 }
             }
         }
+    }
+
+    fun toggleFlash() {
+        isFlashEnabled = !isFlashEnabled
     }
 
     fun startSnapping() {

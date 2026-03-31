@@ -2,6 +2,7 @@ package com.example.food_tracker.feature.camera
 
 import android.util.Log
 import android.widget.Toast
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
@@ -13,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.FlashOff
 import androidx.compose.material.icons.rounded.FlashOn
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material3.*
@@ -66,7 +68,10 @@ fun CameraScreen(
             CameraScreenState.Camera,
             CameraScreenState.Searching -> {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    CameraPreview(foodDetector = viewModel.foodDetector)
+                    CameraPreview(
+                        foodDetector = viewModel.foodDetector,
+                        isFlashEnabled = viewModel.isFlashEnabled
+                    )
                     DetectionOverlay(detections = viewModel.liveDetections)
 
                     Column(
@@ -93,11 +98,11 @@ fun CameraScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             FTIconButton(
-                                icon = Icons.Rounded.FlashOn,
-                                onClick = { /* Toggle Flash */ },
+                                icon = if (viewModel.isFlashEnabled) Icons.Rounded.FlashOn else Icons.Rounded.FlashOff,
+                                onClick = { viewModel.toggleFlash() },
                                 contentDescription = stringResource(R.string.flash),
-                                containerColor = Color.Black.copy(alpha = 0.5f),
-                                contentColor = Color.White
+                                containerColor = if (viewModel.isFlashEnabled) themeColors.primary.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.5f),
+                                contentColor = if (viewModel.isFlashEnabled) themeColors.onPrimary else Color.White
                             )
                         }
 
@@ -123,21 +128,21 @@ fun CameraScreen(
                                 shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (viewModel.screenState == CameraScreenState.Searching)
-                                        themeColors.tertiaryContainer else themeColors.background
+                                        themeColors.primary else themeColors.background
                                 ),
                                 modifier = Modifier.size(80.dp)
                             ) {
                                 if (viewModel.screenState == CameraScreenState.Searching) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(24.dp),
-                                        color = themeColors.onTertiaryContainer,
+                                        color = themeColors.onPrimary,
                                         strokeWidth = 2.dp
                                     )
                                 } else {
                                     Icon(
                                         imageVector = Icons.Rounded.PhotoCamera,
                                         contentDescription = stringResource(R.string.capture),
-                                        tint = themeColors.onBackground,
+                                        tint = themeColors.primary,
                                         modifier = Modifier.size(32.dp)
                                     )
                                 }
@@ -164,11 +169,19 @@ fun CameraScreen(
 }
 
 @Composable
-fun CameraPreview(foodDetector: FoodDetector) {
+fun CameraPreview(
+    foodDetector: FoodDetector,
+    isFlashEnabled: Boolean
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     val analysisExecutor = remember { Executors.newSingleThreadExecutor() }
+    var camera by remember { mutableStateOf<Camera?>(null) }
+
+    LaunchedEffect(isFlashEnabled) {
+        camera?.cameraControl?.enableTorch(isFlashEnabled)
+    }
 
     DisposableEffect(Unit) {
         onDispose { analysisExecutor.shutdown() }
@@ -195,12 +208,13 @@ fun CameraPreview(foodDetector: FoodDetector) {
 
                 try {
                     cameraProvider.unbindAll()
-                    cameraProvider.bindToLifecycle(
+                    camera = cameraProvider.bindToLifecycle(
                         lifecycleOwner,
                         CameraSelector.DEFAULT_BACK_CAMERA,
                         preview,
                         imageAnalysis
                     )
+                    camera?.cameraControl?.enableTorch(isFlashEnabled)
                 } catch (exc: Exception) {
                     Log.e("CameraPreview", "Binding failed", exc)
                 }
