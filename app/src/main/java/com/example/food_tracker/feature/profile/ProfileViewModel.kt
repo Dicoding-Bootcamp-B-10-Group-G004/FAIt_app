@@ -92,9 +92,9 @@ class ProfileViewModel(
             val locale = Locale.forLanguageTag(state.languageCode)
             state = state.copy(
                 calorieGoal = String.format(locale, "%.0f", result.calories),
-                proteinGoal = String.format(locale, "%.0fg", result.protein),
-                carbsGoal = String.format(locale, "%.0fg", result.carbs),
-                fatGoal = String.format(locale, "%.0fg", result.fat),
+                proteinGoal = String.format(locale, "%.0f", result.protein),
+                carbsGoal = String.format(locale, "%.0f", result.carbs),
+                fatGoal = String.format(locale, "%.0f", result.fat),
                 bmi = String.format(locale, "%.1f", result.bmi),
                 bmiStatus = result.bmiStatus
             )
@@ -107,9 +107,9 @@ class ProfileViewModel(
     private fun resetNutritionResults() {
         state = state.copy(
             calorieGoal = "0",
-            proteinGoal = "0g",
-            carbsGoal = "0g",
-            fatGoal = "0g",
+            proteinGoal = "0",
+            carbsGoal = "0",
+            fatGoal = "0",
             bmi = "0.0",
             bmiStatus = "Unknown"
         )

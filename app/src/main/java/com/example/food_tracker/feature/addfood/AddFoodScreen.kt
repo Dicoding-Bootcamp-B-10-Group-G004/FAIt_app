@@ -127,12 +127,12 @@ fun FoodDetailsCard(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    stringResource(R.string.portion) + ": ",
+                    text = stringResource(R.string.portion) + ": ",
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium
                 )
                 OutlinedTextField(
-                    value = if (portion == 0.0) "" else portion.toString(),
+                    value = if (portion == 0.0) "" else String.format(Locale.getDefault(), "%.0f", portion),
                     onValueChange = {
                         val p = it.toDoubleOrNull() ?: 0.0
                         onPortionChange(p)
@@ -143,7 +143,7 @@ fun FoodDetailsCard(
                     shape = RoundedCornerShape(12.dp)
                 )
                 Text(
-                    stringResource(R.string.gram),
+                    text = stringResource(R.string.gram),
                     style = MaterialTheme.typography.bodyLarge
                 ) 
             }
@@ -151,7 +151,7 @@ fun FoodDetailsCard(
             Spacer(modifier = Modifier.height(16.dp))
             
             Text(
-                stringResource(R.string.meal_category) + ":",
+                text = stringResource(R.string.meal_category) + ":",
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium
             )
@@ -187,7 +187,7 @@ fun FoodDetailsCard(
             val fat = baseFood.fat * multiplier
 
             Text(
-                stringResource(R.string.estimated_total_nutrition) + ":",
+                text = stringResource(R.string.estimated_total_nutrition) + ":",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -195,19 +195,19 @@ fun FoodDetailsCard(
             
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    stringResource(R.string.calories_format, String.format(Locale.getDefault(), "%.1f", calories)),
+                    text = stringResource(R.string.calories_format, String.format(Locale.getDefault(), "%.1f", calories)),
                     style = MaterialTheme.typography.bodyLarge
                 )
                 Text(
-                    stringResource(R.string.protein_format, String.format(Locale.getDefault(), "%.1f", protein)),
+                    text = stringResource(R.string.protein_format, String.format(Locale.getDefault(), "%.1f", protein)),
                     style = MaterialTheme.typography.bodyLarge
                 )
                 Text(
-                    stringResource(R.string.carbs_format, String.format(Locale.getDefault(), "%.1f", carbs)),
+                    text = stringResource(R.string.carbs_format, String.format(Locale.getDefault(), "%.1f", carbs)),
                     style = MaterialTheme.typography.bodyLarge
                 )
                 Text(
-                    stringResource(R.string.fat_format, String.format(Locale.getDefault(), "%.1f", fat)),
+                    text = stringResource(R.string.fat_format, String.format(Locale.getDefault(), "%.1f", fat)),
                     style = MaterialTheme.typography.bodyLarge
                 )
             }

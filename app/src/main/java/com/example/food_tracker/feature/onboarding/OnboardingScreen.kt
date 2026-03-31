@@ -77,7 +77,7 @@ fun OnboardingScreen(
             value = weight,
             onValueChange = { weight = it },
             label = stringResource(R.string.weight_kg),
-            placeholder = "e.g. 70",
+            placeholder = stringResource(R.string.placeholder_weight),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
 
@@ -87,7 +87,7 @@ fun OnboardingScreen(
             value = height,
             onValueChange = { height = it },
             label = stringResource(R.string.height_cm),
-            placeholder = "e.g. 175",
+            placeholder = stringResource(R.string.placeholder_height),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
 
@@ -97,7 +97,7 @@ fun OnboardingScreen(
             value = age,
             onValueChange = { age = it },
             label = stringResource(R.string.age),
-            placeholder = "e.g. 25",
+            placeholder = stringResource(R.string.placeholder_age),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
 
@@ -170,7 +170,11 @@ fun OnboardingScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Goal.entries.forEach { g ->
-                val goalLabel = g.name.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                val goalLabel = when(g) {
+                    Goal.LOSE -> stringResource(R.string.goal_lose)
+                    Goal.MAINTAIN -> stringResource(R.string.goal_maintain)
+                    Goal.GAIN -> stringResource(R.string.goal_gain)
+                }
                 FilterChip(
                     selected = selectedGoal == g,
                     onClick = { selectedGoal = g },

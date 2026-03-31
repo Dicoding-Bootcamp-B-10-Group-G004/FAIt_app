@@ -119,10 +119,26 @@ fun ProfileScreen(
                         .padding(horizontal = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    ProfileInfoItem(Icons.Rounded.MonitorWeight, stringResource(R.string.weight), "${state.weight} kg")
-                    ProfileInfoItem(Icons.Rounded.Height, stringResource(R.string.height), "${state.height} cm")
-                    ProfileInfoItem(Icons.Rounded.Cake, stringResource(R.string.age), "${state.age} ${stringResource(R.string.years)}")
-                    ProfileInfoItem(Icons.Rounded.Male, stringResource(R.string.gender), if (state.isMale) stringResource(R.string.male) else stringResource(R.string.female))
+                    ProfileInfoItem(
+                        Icons.Rounded.MonitorWeight, 
+                        stringResource(R.string.weight), 
+                        stringResource(R.string.weight_unit_format, state.weight)
+                    )
+                    ProfileInfoItem(
+                        Icons.Rounded.Height, 
+                        stringResource(R.string.height), 
+                        stringResource(R.string.height_unit_format, state.height)
+                    )
+                    ProfileInfoItem(
+                        Icons.Rounded.Cake, 
+                        stringResource(R.string.age), 
+                        stringResource(R.string.age_unit_format, state.age, stringResource(R.string.years))
+                    )
+                    ProfileInfoItem(
+                        Icons.Rounded.Male, 
+                        stringResource(R.string.gender), 
+                        if (state.isMale) stringResource(R.string.male) else stringResource(R.string.female)
+                    )
                     ProfileInfoItem(
                         Icons.Rounded.DirectionsRun, 
                         stringResource(R.string.activity_intensity), 
@@ -368,7 +384,7 @@ fun NutritionCard(calories: String, protein: String, carbs: String, fat: String)
                         style = MaterialTheme.typography.labelLarge
                     )
                     Text(
-                        "$calories kcal", 
+                        stringResource(R.string.kcal_unit_format, calories),
                         color = themeColors.onPrimaryContainer, 
                         style = MaterialTheme.typography.headlineMedium, 
                         fontWeight = FontWeight.Black

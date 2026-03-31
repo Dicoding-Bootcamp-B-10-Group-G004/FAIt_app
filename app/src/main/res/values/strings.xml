@@ -70,6 +70,12 @@
     <string name="daily_calorie_goal">Daily Calorie Goal</string>
     <string name="bmi">BMI</string>
     <string name="years">years</string>
+    <string name="weight_unit_format">%1$s kg</string>
+    <string name="height_unit_format">%1$s cm</string>
+    <string name="age_unit_format">%1$s %2$s</string>
+    <string name="kcal_unit_format">%1$s kcal</string>
+    <string name="gram_unit_format">%1$s g</string>
+    <string name="macro_stat_format">%1$d/%2$dg</string>
 
     <!-- Onboarding Screen -->
     <string name="welcome">Welcome!</string>

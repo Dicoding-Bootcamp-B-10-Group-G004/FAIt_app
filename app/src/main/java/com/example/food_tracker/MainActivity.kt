@@ -87,7 +87,7 @@ class MainActivity : ComponentActivity() {
             }
 
             // Provide the localized context and configuration to the composition.
-            // We also explicitly provide Activity-based owners because localizedContext 
+            // We also explicitly provide Activity-based owners because localizedContext
             // is not an Activity and would otherwise break components like rememberLauncherForActivityResult.
             CompositionLocalProvider(
                 LocalContext provides localizedContext,
