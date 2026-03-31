@@ -38,6 +38,8 @@ class UserDataStore(private val context: Context) {
 
         val LAST_SUGGESTION_DATE = stringPreferencesKey("last_suggestion_date")
         val DIETARY_SUGGESTION = stringPreferencesKey("dietary_suggestion")
+        
+        val CACHED_MODELS = stringPreferencesKey("cached_models")
 
         // App Preferences
         val LANGUAGE_CODE = stringPreferencesKey("language_code")
@@ -94,6 +96,16 @@ class UserDataStore(private val context: Context) {
         context.dataStore.edit { prefs ->
             prefs[DIETARY_SUGGESTION] = suggestion
             prefs[LAST_SUGGESTION_DATE] = date
+        }
+    }
+
+    val cachedModelsFlow: Flow<List<String>> = context.dataStore.data.map { prefs ->
+        prefs[CACHED_MODELS]?.split(",")?.filter { it.isNotEmpty() } ?: emptyList()
+    }
+
+    suspend fun saveCachedModels(models: List<String>) {
+        context.dataStore.edit { prefs ->
+            prefs[CACHED_MODELS] = models.joinToString(",")
         }
     }
 

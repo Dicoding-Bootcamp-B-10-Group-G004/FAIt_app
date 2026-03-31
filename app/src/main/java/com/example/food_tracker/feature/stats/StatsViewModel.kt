@@ -10,11 +10,15 @@ import com.example.food_tracker.data.local.UserDataStore
 import com.example.food_tracker.domain.model.DietHistory
 import com.example.food_tracker.domain.usecase.GetAllDietHistoriesUseCase
 import com.google.ai.client.generativeai.GenerativeModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -29,13 +33,6 @@ class StatsViewModel(
     private var statsJob: Job? = null
 
     private fun getSdf() = SimpleDateFormat("yyyy-MM-dd", Locale.forLanguageTag(state.languageCode))
-
-    private val generativeModel by lazy {
-        GenerativeModel(
-            modelName = "gemini-2.5-flash",
-            apiKey = BuildConfig.GEMINI_API_KEY
-        )
-    }
 
     init {
         loadAppPreferences()
@@ -64,11 +61,32 @@ class StatsViewModel(
                 lastSuggestionDate = savedDate
             )
             
-            val today = getSdf().format(Date())
-            if (savedDate != today && state.dietHistories.isNotEmpty()) {
+            if (shouldRequestWeeklySuggestion()) {
                 getDietarySuggestion()
             }
         }
+    }
+
+    private fun shouldRequestWeeklySuggestion(): Boolean {
+        if (state.dietHistories.isEmpty()) return false
+
+        val now = Calendar.getInstance()
+        // Sunday is used as the end of the week check.
+        val isEndOfWeek = now.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY
+        if (!isEndOfWeek) return false
+
+        val lastDateStr = state.lastSuggestionDate ?: return true
+        val lastDate = try {
+            getSdf().parse(lastDateStr)
+        } catch (e: Exception) {
+            null
+        } ?: return true
+
+        val lastCal = Calendar.getInstance().apply { time = lastDate }
+
+        // Only request if the last suggestion was from a different week or year
+        return now.get(Calendar.WEEK_OF_YEAR) != lastCal.get(Calendar.WEEK_OF_YEAR) ||
+                now.get(Calendar.YEAR) != lastCal.get(Calendar.YEAR)
     }
 
     private fun loadStats() {
@@ -122,15 +140,79 @@ class StatsViewModel(
                 isLoading = false
             )
 
-            val today = getSdf().format(Date())
-            if (state.lastSuggestionDate != today && histories.isNotEmpty()) {
+            if (shouldRequestWeeklySuggestion()) {
                 getDietarySuggestion()
             }
         }.launchIn(viewModelScope)
     }
 
+    /**
+     * Fetches the list of available models directly from the Google AI API
+     */
+    private suspend fun fetchAvailableModels(): List<String> = withContext(Dispatchers.IO) {
+        try {
+            val url = URL("https://generativelanguage.googleapis.com/v1beta/models?key=${BuildConfig.GEMINI_API_KEY}")
+            val connection = url.openConnection() as java.net.HttpURLConnection
+            val responseText = try {
+                connection.inputStream.bufferedReader().readText()
+            } catch (e: Exception) {
+                connection.errorStream?.bufferedReader()?.readText() ?: ""
+            }
+            if (responseText.isEmpty()) return@withContext emptyList()
+            
+            val json = JSONObject(responseText)
+            if (!json.has("models")) return@withContext emptyList()
+            
+            val modelsArray = json.getJSONArray("models")
+            val textModels = mutableListOf<String>()
+            for (i in 0 until modelsArray.length()) {
+                val modelObj = modelsArray.getJSONObject(i)
+                val name = modelObj.getString("name")
+                val shortName = name.removePrefix("models/")
+                val methods = modelObj.getJSONArray("supportedGenerationMethods").toString()
+                
+                // Exclude non-text/specialized models
+                val isExcluded = shortName.contains("tts", ignoreCase = true) ||
+                                shortName.contains("research", ignoreCase = true) ||
+                                shortName.contains("lyria", ignoreCase = true) ||
+                                shortName.contains("embedding", ignoreCase = true) ||
+                                shortName.contains("aqa", ignoreCase = true)
+
+                // Only include models that support content generation (text/multimodal) and are not excluded
+                if (methods.contains("generateContent") && !isExcluded) {
+                    textModels.add(name)
+                }
+            }
+            textModels
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun getModelPriorityList(availableModels: List<String>): List<String> {
+        val modelPriorityList = mutableListOf<String>()
+        val defaultModelId = "gemini-3.1-flash-lite-preview"
+        val fullDefaultName = "models/$defaultModelId"
+
+        if (availableModels.contains(fullDefaultName) || availableModels.contains(defaultModelId)) {
+            modelPriorityList.add(defaultModelId)
+        }
+
+        availableModels.forEach { fullModelName ->
+            val shortName = fullModelName.removePrefix("models/")
+            if (shortName != defaultModelId && !modelPriorityList.contains(shortName)) {
+                modelPriorityList.add(shortName)
+            }
+        }
+
+        if (modelPriorityList.isEmpty()) {
+            modelPriorityList.addAll(listOf(defaultModelId, "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"))
+        }
+        return modelPriorityList
+    }
+
     fun getDietarySuggestion() {
-        if (state.dietHistories.isEmpty()) return
+        if (state.dietHistories.isEmpty() || state.isSuggestionLoading) return
 
         if (BuildConfig.GEMINI_API_KEY.isEmpty()) {
             state = state.copy(dietarySuggestion = "Error: API Key is empty. Please check local.properties and Rebuild Project.")
@@ -140,6 +222,7 @@ class StatsViewModel(
         viewModelScope.launch {
             state = state.copy(isSuggestionLoading = true)
             try {
+                // 1. Prepare Prompt
                 val profile = userDataStore.userProfileFlow.first()
                 val isIndonesian = state.languageCode == "in"
                 
@@ -206,22 +289,65 @@ class StatsViewModel(
                     """.trimIndent()
                 }
 
-                val response = generativeModel.generateContent(prompt)
-                val suggestion = response.text ?: (if (isIndonesian) "Gagal mendapatkan saran." else "Failed to get suggestion.")
-                
-                val today = getSdf().format(Date())
-                userDataStore.saveDietarySuggestion(suggestion, today)
-                
-                state = state.copy(
-                    dietarySuggestion = suggestion,
-                    lastSuggestionDate = today,
-                    isSuggestionLoading = false
-                )
+                // 2. Fetch models (persistent cache from UserDataStore)
+                var currentCachedModels = userDataStore.cachedModelsFlow.first()
+                if (currentCachedModels.isEmpty()) {
+                    currentCachedModels = fetchAvailableModels()
+                    if (currentCachedModels.isNotEmpty()) {
+                        userDataStore.saveCachedModels(currentCachedModels)
+                    }
+                }
+
+                var finalSuggestion: String? = null
+                var lastException: Exception? = null
+
+                // Helper to try models in order
+                suspend fun tryToGenerateSuggestion(models: List<String>): String? {
+                    val priorityList = getModelPriorityList(models)
+                    for (modelName in priorityList) {
+                        try {
+                            val model = GenerativeModel(
+                                modelName = modelName,
+                                apiKey = BuildConfig.GEMINI_API_KEY
+                            )
+                            val response = model.generateContent(prompt)
+                            if (!response.text.isNullOrBlank()) return response.text
+                        } catch (e: Exception) {
+                            lastException = e
+                        }
+                    }
+                    return null
+                }
+
+                // 3. Try models from cache
+                finalSuggestion = tryToGenerateSuggestion(currentCachedModels)
+
+                // 4. If all cached models failed, refresh cache and try again once
+                if (finalSuggestion == null) {
+                    val refreshedModels = fetchAvailableModels()
+                    if (refreshedModels.isNotEmpty()) {
+                        userDataStore.saveCachedModels(refreshedModels)
+                        finalSuggestion = tryToGenerateSuggestion(refreshedModels)
+                    }
+                }
+
+                if (finalSuggestion != null) {
+                    val today = getSdf().format(Date())
+                    userDataStore.saveDietarySuggestion(finalSuggestion, today)
+                    
+                    state = state.copy(
+                        dietarySuggestion = finalSuggestion,
+                        lastSuggestionDate = today,
+                        isSuggestionLoading = false
+                    )
+                } else {
+                    throw lastException ?: Exception("All available models failed to generate content")
+                }
             } catch (e: Exception) {
                 val errorMsg = if (state.languageCode == "in") {
-                    "Galat: ${e.message}\nPastikan model gemini-1.5-flash tersedia di wilayah Anda."
+                    "Galat: ${e.message}\nPastikan model Gemini tersedia atau kuota limit belum tercapai."
                 } else {
-                    "Error: ${e.message}\nMake sure gemini-1.5-flash model is available in your region."
+                    "Error: ${e.message}\nEnsure Gemini models are available or quota limit not reached."
                 }
                 state = state.copy(
                     dietarySuggestion = errorMsg,
