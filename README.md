@@ -8,8 +8,7 @@ dan lemak), serta memberikan rekomendasi diet berbasis AI.
 
 ## Deskripsi
 
-Aplikasi ini menggabungkan teknologi Computer Vision dan Machine
-Learning untuk membantu pengguna dalam memonitor asupan makanan harian.
+Aplikasi ini menggabungkan teknologi Computer Vision dan LLM untuk membantu pengguna dalam memonitor asupan makanan harian.
 Sistem dapat mendeteksi makanan melalui kamera, mengambil data nutrisi,
 serta menampilkan statistik konsumsi harian.
 
@@ -17,13 +16,13 @@ serta menampilkan statistik konsumsi harian.
 
 ## Fitur Utama
 
--   Deteksi makanan menggunakan model TensorFlow Lite (YOLO)
+-   Deteksi makanan menggunakan model TensorFlow Lite (YOLOv26)
 -   Input makanan manual
 -   Perhitungan kalori dan makronutrien (protein, karbohidrat, lemak)
 -   Statistik konsumsi harian
 -   Penyimpanan data menggunakan Room Database
 -   Rekomendasi diet menggunakan Gemini API
--   Dukungan multi-bahasa
+-   Dukungan multi-bahasa (Bahasa Inggris dan Bahasa Indonesia)
 
 ------------------------------------------------------------------------
 
@@ -33,10 +32,9 @@ serta menampilkan statistik konsumsi harian.
 -   Jetpack Compose
 -   MVVM Architecture
 -   Clean Architecture
--   TensorFlow Lite
+-   TensorFlow Lite (LiteRT)
 -   Room Database
 -   DataStore
--   REST API
 -   Gemini AI API
 
 ------------------------------------------------------------------------
@@ -77,25 +75,17 @@ Klik "Sync Project with Gradle Files" dan tunggu hingga selesai.
 
 ## Setup Model AI
 
-### 1. Siapkan File Model
+### 1. Siapkan File Model, Metadata Model, dan Data Gizinya
 
-yolo26n_int8.tflite
+- yolo26n_320_int8.tflite
+- metadata.yaml
+- hasil_gizi_100gram.csv
 
-### 2. Letakkan di Folder Assets
-
-app/src/main/assets/
-
-------------------------------------------------------------------------
-
-## Setup Data Nutrisi
-
-### 1. Siapkan File CSV
-
-hasil_gizi_100gram.csv
 
 ### 2. Letakkan di Folder Assets
 
 app/src/main/assets/
+
 
 ------------------------------------------------------------------------
 
