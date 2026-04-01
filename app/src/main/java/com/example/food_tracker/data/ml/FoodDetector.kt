@@ -235,7 +235,7 @@ class FoodDetector(
 
     companion object {
         const val MAX_RESULTS_DEFAULT = 5
-        const val THRESHOLD_DEFAULT = 0.45F
+        const val THRESHOLD_DEFAULT = 0.3F
         const val TAG = "FoodDetector"
         private val YAML_NAME_REGEX = Regex("^(\\d+):\\s*['\"]?(.*?)['\"]?$")
     }

@@ -1,6 +1,8 @@
 package com.example.food_tracker.feature.addfood
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -51,6 +53,7 @@ fun AddFoodScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
+            .verticalScroll(rememberScrollState())
     ) {
         Text(
             text = if (trackedFoodId != null) stringResource(R.string.edit_nutrition) else stringResource(R.string.confirm_nutrition), 
@@ -95,7 +98,7 @@ fun AddFoodScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FoodDetailsCard(
     foodName: String,
@@ -155,9 +158,11 @@ fun FoodDetailsCard(
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium
             )
-            Row(
+            
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 categories.forEach { meal ->
                     val mealLabel = when(meal) {
